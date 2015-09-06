@@ -30,6 +30,6 @@ zipファイルの中にあるUnityInjectorフォルダをCM3D2フォルダにD&
 
 
 [CM3D2.AddModsSlider.Plugin]: https://github.com/CM3D2-01/CM3D2.AddModsSlider.Plugin "CM3D2-01/CM3D2.AddModsSlider.Plugin"
-[master zip]:https://github.com/CM3D2-01/CM3D2.AddModsSlider.Plugin/archive/master.zip "master zip"
+[master zip]:https://github.com/CM3D2-01/CM3D2.AddYotogiSlider.Plugin/archive/master.zip "master zip"
 [img_download]: http://i.imgur.com/byav3Uf.png "ダウンロードボタン"
 
