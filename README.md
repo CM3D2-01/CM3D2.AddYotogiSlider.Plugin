@@ -8,7 +8,7 @@
 ##導入方法
 **前提条件** : **UnityInjector** が導入済みであること。  
   
-この画面右の![ダウンロードボタン](http://i.imgur.com/9b8T0ts.png "ダウンロードボタン")を押してzipファイルをダウンロード。  
+[![ダウンロードボタン][img_download]][master zip]を押してzipファイルをダウンロード。  
 zipファイルの中にあるUnityInjectorフォルダをCM3D2フォルダにD&Dすれば導入完了。  
 
 
@@ -30,3 +30,6 @@ zipファイルの中にあるUnityInjectorフォルダをCM3D2フォルダにD&
 
 
 [CM3D2.AddModsSlider.Plugin]: https://github.com/CM3D2-01/CM3D2.AddModsSlider.Plugin "CM3D2-01/CM3D2.AddModsSlider.Plugin"
+[master zip]:https://github.com/CM3D2-01/CM3D2.AddModsSlider.Plugin/archive/master.zip "master zip"
+[img_download]: http://i.imgur.com/byav3Uf.png "ダウンロードボタン"
+
