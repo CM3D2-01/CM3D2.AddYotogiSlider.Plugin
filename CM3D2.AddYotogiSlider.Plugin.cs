@@ -15,11 +15,11 @@ namespace CM3D2.AddYotogiSlider.Plugin
     PluginFilter("CM3D2x86"),
     PluginFilter("CM3D2VRx64"),
     PluginName("CM3D2 AddYotogiSlider"),
-    PluginVersion("0.0.1.1")]
+    PluginVersion("0.0.1.2")]
     public class AddYotogiSlider : UnityInjector.PluginBase
     {
         public const string PluginName = "AddYotogiSlider";
-        public const string Version = "0.0.1.1";
+        public const string Version = "0.0.1.2";
 
         private int   sceneLevel;
         private bool  visible            = false;
@@ -55,7 +55,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
         private int  iOrgasmCount = 0;
 
         //AutoAHE
-        private int      idxAheOrgasm()      { return (int)Math.Min(Mathf.Floor(iOrgasmCount / 3f), 2); } //絶頂回数3,6,9で変化
+        private int      idxAheOrgasm()      { return (int)Math.Min(Mathf.Floor(iOrgasmCount / 3f), 2); } //絶頂回数3,6で変化
         private int[]    iAheExcite          = new int[] { 275, 250, 225 };                               //適用の興奮閾値
         private float    fAheLastEye         = 0f;
         private float[]  fAheNormalEyeMax    = new float[] { 40f, 45f, 50f };                             //通常時の瞳の最大値
@@ -506,11 +506,12 @@ namespace CM3D2.AddYotogiSlider.Plugin
         {
             sceneLevel = level;
             visible = false;
+            fPassedTimeOnLevel = 0f;
+            fLastInitTime = 0f;
 
             if (sceneLevel == 14) 
             {
                 initCompleted = false;
-                fPassedTimeOnLevel = 0f;
             } 
             else if (tagFaceOverride)
             {
@@ -1118,7 +1119,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
         {
             return (go) ? go.activeInHierarchy : false;
         }
-        
+
         internal static T getInstance<T>() where T : class
         {
             return UnityEngine.Object.FindObjectOfType(typeof(T)) as T;
