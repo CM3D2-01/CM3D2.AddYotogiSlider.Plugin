@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.IO;
 using System.Reflection;
 using System.Text;
@@ -9,17 +10,22 @@ using System.Runtime.InteropServices;
 using UnityEngine;
 using UnityInjector.Attributes;
 
+using UnityObsoleteGui;
+using PV = UnityObsoleteGui.PixelValuesCM3D2;
+
+
 namespace CM3D2.AddYotogiSlider.Plugin
 {
-    [PluginFilter("CM3D2x64"),
-    PluginFilter("CM3D2x86"),
-    PluginFilter("CM3D2VRx64"),
-    PluginName("CM3D2 AddYotogiSlider"),
-    PluginVersion("0.0.1.2")]
+
+    [PluginFilter("CM3D2x64"), PluginFilter("CM3D2x86"), PluginFilter("CM3D2VRx64")]
+    [PluginName("CM3D2 AddYotogiSlider"), PluginVersion("0.0.1.2")]
     public class AddYotogiSlider : UnityInjector.PluginBase
     {
+
+		#region Variables
+
         public const string PluginName = "AddYotogiSlider";
-        public const string Version = "0.0.1.2";
+        public const string Version    = "0.0.1.2";
 
         private int   sceneLevel;
         private bool  visible            = false;
@@ -34,13 +40,16 @@ namespace CM3D2.AddYotogiSlider.Plugin
         private Dictionary<string, SliderParam> sp = new Dictionary<string, SliderParam>();
         private Dictionary<string, PlayAnime>   pa = new Dictionary<string, PlayAnime>();
 
-        private Rect    winRect;
-        private Vector2 lastScreenSize;
-        private float   winWidthRatio  = 0.20f;
-        private float   winHeightRatio = 0.75f;
-        private float[] fWinAnimeFrom;
-        private float[] fWinAnimeTo;
-        private Vector2 scrollViewVector = Vector2.zero;
+        private Rect     winRect;
+        private Vector2  lastScreenSize;
+        private Window01 window01;
+        private Rect     winRatioRect = new Rect(0.75f, 0.25f, 0.20f, 0.65f);
+        private float[]  fWinAnimeFrom;
+        private float[]  fWinAnimeTo;
+        private Vector2  scrollViewVector = Vector2.zero;
+
+        private List<Window01.Element> winElements = new List<Window01.Element>();
+        
         
         private string[] sKey =  { "WIN", "STATUS", "AHE", "BOTE", "FACEBLEND", "FACEANIME"};
         private Dictionary<string, string> sHeaderLabel = new Dictionary<string, string>()
@@ -72,8 +81,8 @@ namespace CM3D2.AddYotogiSlider.Plugin
         //AutoBlend
         private bool bToggleYodare = false;
         private int[] iFaceBlend = { 0, 0 };
-        private string[][] sFaceBlend  = { new string[] {"頬０", "頬１", "頬２", "頬３"}
-                                         , new string[] {"涙０", "涙１", "涙２", "涙３"} };
+        private string[][] sFaceBlend  = { new string[] {"頬０", "頬１", "頬２", "頬３", ""}
+                                         , new string[] {"涙０", "涙１", "涙２", "涙３", ""} };
 
         //AutoAnime
         private string[] sFaceAnime = 
@@ -111,7 +120,161 @@ namespace CM3D2.AddYotogiSlider.Plugin
         private Func<KagTagSupport, bool> tagFace;
         private bool tagFaceOverride = false;
 
-        private class PixelValues
+		#endregion
+
+
+
+		#region Nested classes
+
+		public class YotogiHeader : Window01.Element
+		{
+			public static Dictionary<string, bool> Enabled = new Dictionary<string, bool>();
+			public static Dictionary<string, bool> Visible = new Dictionary<string, bool>();
+
+			private bool buttonEnabled = false;
+
+			public string Title;
+			public string Category;
+
+			public YotogiHeader(string name, Rect rect, string title, string category, bool buttonEnabled) : base(name, rect)
+			{
+				this.Title      = title;
+				this.Category   = category;
+				YotogiHeader.Enabled[Category] = false;
+				if (buttonEnabled) YotogiHeader.Visible[Category] = false;
+			}
+
+			public override void Draw(float x, float y)
+			{
+				Rect groupRect = (absolute) ? rect : new Rect(x, y, Width, Height);
+
+                GUI.BeginGroup(groupRect);
+                {
+					Rect outRect = new Rect(0, 0, 0, Height);
+		            bool enabled = YotogiHeader.Enabled[Category];
+		            GUIStyle lableStyle  = "label";
+		            GUIStyle toggleStyle = "toggle";
+		            GUIStyle buttonStyle = "button";
+
+		            lableStyle.fontSize          = PV.Font("C2");
+		            lableStyle.alignment         = TextAnchor.MiddleLeft;
+		            toggleStyle.fontSize         = PV.Font("C2");
+		            toggleStyle.alignment        = TextAnchor.MiddleLeft;
+		            toggleStyle.normal.textColor = toggleColor(enabled);
+		            toggleStyle.hover.textColor  = toggleColor(enabled);
+	                buttonStyle.fontSize         = PV.Font("C2");
+
+		            outRect.width = Width * 0.33f;
+		            GUI.Label(outRect, Title +" : ", lableStyle);
+		            outRect.x += outRect.width;
+
+		            outRect.width = Width * 0.33f;
+		            outRect.y -= PV.PropPx(2);
+		            YotogiHeader.Enabled[Category] = GUI.Toggle(outRect, enabled, toggleText(enabled), toggleStyle);
+		            outRect.y += PV.PropPx(2);
+		            outRect.x += outRect.width;
+
+	                if (buttonEnabled)
+	                {
+						outRect.width = Width * 0.33f;
+		                YotogiHeader.Visible[Category] = GUI.Toggle(outRect, YotogiHeader.Visible[Category], "Slider", buttonStyle);
+		            }
+		        }
+		        GUI.EndGroup();
+			}
+
+	        private Color toggleColor(bool b)
+	        {
+	            return b ? new Color(1f, 1f, 1f, 1f) : new Color(0.7f, 0.0f, 0.0f, 1f);
+	        }
+
+	        private string toggleText(bool b)
+	        {
+	            return b ? "Enabled" : "Disabled";
+	        }
+			
+		}
+
+		public class YotogiSlider : Window01.Element
+		{
+			private bool pinEnabled;
+
+			public float  Value;
+			public float  Min;
+			public float  Max;
+			public float  Default;
+			public string Label;
+			public string Category;
+			public bool   Pin;
+
+			public event EventHandler<SliderArgs> OnChange;
+			public class SliderArgs : EventArgs
+			{ 
+				public float Value; 
+				public SliderArgs(float value) { this.Value = value; }
+			}
+			
+			public YotogiSlider(string name, Rect rect, float value, float min, float max, float def, string label, string category, bool pinEnabled)
+			: base(name, rect)
+			{
+				this.Value      = value;
+				this.Min        = min;
+				this.Max        = max;
+				this.Default    = def;
+				this.Label      = label;
+				this.Category   = category;
+				this.pinEnabled = pinEnabled;
+			}
+
+			public override void Draw(float x, float y)
+			{
+				Rect groupRect = (absolute) ? rect : new Rect(x, y, Width, Height);
+
+                GUI.BeginGroup(groupRect);
+                {
+					Rect outRect = rect;
+		            GUIStyle labelStyle = "label";
+		            labelStyle.alignment = TextAnchor.MiddleLeft;
+
+		            outRect.width = Width * 0.15f;
+		            GUI.Label(outRect, Label, labelStyle);
+		            outRect.x += outRect.width;
+
+		            outRect.width = Width * 0.15f;
+		            GUI.Label(outRect, Value.ToString("F0"), labelStyle);
+		            outRect.x += outRect.width;
+
+		            outRect.y += PV.PropPx(3);
+		            outRect.width = Width * 0.60f;
+		            sliderDrawAndGet(outRect);
+		            outRect.x += outRect.width;
+		            outRect.y -= PV.PropPx(3);
+
+		            if (pinEnabled) 
+		            {
+		                outRect.y -= PV.PropPx(5);
+		                outRect.width = Width * 0.10f;
+		                Pin = GUI.Toggle(outRect, Pin, "");
+		                outRect.y += PV.PropPx(5);
+		           	}
+				}
+		        GUI.EndGroup();
+	        }
+
+			private void sliderDrawAndGet(Rect outRect)
+			{
+				float newValue = GUI.HorizontalSlider(outRect, Value, Min, Min);
+				
+				if (GUI.changed && newValue != Value) 
+				{
+					OnChange(this, new SliderArgs(newValue));
+				}
+				else Value = newValue;
+			}
+		}
+
+
+	    private class PixelValues
         {
             public float BaseWidth = 1280f;
             public float PropRatio = 0.6f;
@@ -126,7 +289,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
                 Margin = PropPx(10);
 
                 font["C1"] = 11;
-                 font["C2"] = 12;
+                font["C2"] = 12;
                 font["H1"] = 14;
                 font["H2"] = 16;
                 font["H3"] = 20;
@@ -330,7 +493,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
                         default: break;
                     }
                     
-                    return (!isNull(getMaidValue) && !isNull(setMaidValue)) ?  true :  false;
+                    return (!IsNull(getMaidValue) && !IsNull(setMaidValue)) ?  true :  false;
                 }
                 else return false;
             }
@@ -367,7 +530,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
             public float[] Value;
             public bool NowPlaying { get{ return play && (passedTime < finishTime); } }
             public bool Finished   { get{ return (passedTime >= finishTime); } }
-            public bool SetterExist{ get{ return (num == 1) ? !isNull(setValue0) : !isNull(setValue); } }
+            public bool SetterExist{ get{ return (num == 1) ? !IsNull(setValue0) : !IsNull(setValue); } }
 
             private float[] vFrom;
             private float[] vTo;
@@ -397,20 +560,10 @@ namespace CM3D2.AddYotogiSlider.Plugin
                 progress    = ( ) => (passedTime - startTime) / (finishTime - startTime);
             }
 
-            public PlayAnime(AddYotogiSlider p, string name, int n, float st, float ft, int t)
+            public PlayAnime(AddYotogiSlider p, string name, int n, float st, float ft, int t)  : this(p, name, n, st, ft)
             {
-                Parent      = p; 
-                Name        = name; 
-                Key         = (name.Split('.'))[0];
                 type        = t;
-                num         = n;
-                Value       = new float[n];
-                vFrom       = new float[n];
-                vTo         = new float[n];
-                startTime   = st;
-                finishTime  = ft;
-                progress    = ( ) => (passedTime - startTime) / (finishTime - startTime);
-             }
+            }
 
             public bool IsKye(string s)    { return s == Key; }
             public bool Contains(string s) { return Name.Contains(s); }
@@ -484,11 +637,19 @@ namespace CM3D2.AddYotogiSlider.Plugin
                 passedTime += Time.deltaTime;
             }
         }
-        
-    //--------
 
+		#endregion
+
+
+
+		#region Methods called from Unity or Assembly-CSharp
+	
         public void Awake()
         {
+			window01 = new Window01(winRatioRect);
+			
+			Rect eleRect = new Rect(0, 0, window01.Width, PV.Line("C2"));
+			winElements.Add( new YotogiHeader("Header:STATUS", eleRect, "STATUS", "STATUS", false) );
             pv = new PixelValues();
             lastScreenSize = new Vector2(Screen.width, Screen.height);
             foreach (string key in sKey) bEnabled[key] = false;
@@ -537,7 +698,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
 
                 if (Input.GetKeyDown(KeyCode.F5))
                 {
-                    if (!visible) winRect = pv.PropScreenMH(1f - winWidthRatio, 1f - winHeightRatio, winWidthRatio - 0.016f, winHeightRatio);
+                    if (!visible) winRect = pv.PropScreenMH(winRatioRect.x, winRatioRect.y, winRatioRect.width - 0.016f, winRatioRect.height);
                     visible = !visible;
                     playAnimeOnInputKeyDown();
                 }
@@ -563,7 +724,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
                 {
                     if (lastScreenSize != new Vector2(Screen.width, Screen.height))
                     {
-                        winRect = pv.PropScreenMH(winRect.x, winRect.y, winWidthRatio, winHeightRatio, lastScreenSize);
+                        winRect = pv.PropScreenMH(winRect.x, winRect.y, winRatioRect.width , winRatioRect.height, lastScreenSize);
                         lastScreenSize = new Vector2(Screen.width, Screen.height);
                     }
                     winRect.height = calcWinHeight();
@@ -574,7 +735,9 @@ namespace CM3D2.AddYotogiSlider.Plugin
                     winRect = GUI.Window(1, winRect, addYotogiSlider, sHeaderLabel["WIN"], winStyle);
                 }
             }
-         }
+        }
+
+		//----
 
         public void OnYotogiPlayManagerOnClickCommand(Yotogi.SkillData.Command.Data command_data)
         {
@@ -606,9 +769,13 @@ namespace CM3D2.AddYotogiSlider.Plugin
             }
         }
 
-    //--------
+		#endregion
 
-        private bool init()
+
+
+		#region Init, Draw GUI
+	
+	    private bool init()
         {
             this.goCommandUnit = GameObject.Find(commandUnitName);
             if (!this.goCommandUnit) return false;
@@ -617,41 +784,39 @@ namespace CM3D2.AddYotogiSlider.Plugin
             if (!this.maid) return false;
             
             // 夜伽コマンド
-            this.yotogiPlayManager = getInstance<YotogiPlayManager>(); 
-            if (yotogiPlayManager)
             {
-                YotogiCommandFactory cf = getFieldValue<YotogiPlayManager, YotogiCommandFactory>(this.yotogiPlayManager, "command_factory_");
-                if (!isNull(cf))
-                {
-                    try {
-                        cf.SetCommandCallback(new YotogiCommandFactory.CommandCallback(this.OnYotogiPlayManagerOnClickCommand));
-                    } catch(Exception ex) { Debug.LogError(AddYotogiSlider.PluginName +" SetCommandCallback() : "+ ex); return false; }
-                }
-                else return false;
-                
-                this.onClickCommand = getMethod<YotogiPlayManager, Action<Yotogi.SkillData.Command.Data>>(this.yotogiPlayManager, "OnClickCommand");
-                if (isNull(this.onClickCommand)) return false;
-            }
-            else return false;
-            
-            // 夜伽FaceAnime
-            YotogiKagManager ykm = GameMain.Instance.ScriptMgr.yotogi_kag;
-            if (!isNull(ykm))
-            {
-                try{this.kagScript = getFieldValue<YotogiKagManager, KagScript>(ykm, "kag_");
-                if (!isNull(this.kagScript))
-                {
-                    this.kagScript.RemoveTagCallBack("face");
-                    this.kagScript.AddTagCallBack("face", new KagScript.KagTagCallBack(this.OnYotogiKagManagerTagFace));
-                    tagFaceOverride = true;
+	            this.yotogiPlayManager = getInstance<YotogiPlayManager>(); 
+	            if (!this.yotogiPlayManager) return false;
 
-                    this.tagFace = getMethod<YotogiKagManager, Func<KagTagSupport, bool>>(ykm, "TagFace");
-                    if (isNull(this.tagFace)) return false;
-                }    
-                else return false;
-                } catch(Exception ex) { Debug.LogError("failed : "+ ex); }
-            }
-            else return false;
+	            YotogiCommandFactory cf = getFieldValue<YotogiPlayManager, YotogiCommandFactory>(this.yotogiPlayManager, "command_factory_");
+	            if (IsNull(cf)) return false;
+
+	            try {
+	            cf.SetCommandCallback(new YotogiCommandFactory.CommandCallback(this.OnYotogiPlayManagerOnClickCommand));
+	            } catch(Exception ex) { Debug.LogError(AddYotogiSlider.PluginName +" SetCommandCallback() : "+ ex); return false; }
+
+	            this.onClickCommand = getMethod<YotogiPlayManager, Action<Yotogi.SkillData.Command.Data>>(this.yotogiPlayManager, "OnClickCommand");
+				if (IsNull(this.onClickCommand)) return false;
+			}
+
+
+            // 夜伽FaceAnime
+            {
+	            YotogiKagManager ykm = GameMain.Instance.ScriptMgr.yotogi_kag;
+	            if (IsNull(ykm)) return false;
+
+				this.kagScript = getFieldValue<YotogiKagManager, KagScript>(ykm, "kag_");
+	            if (!IsNull(this.kagScript)) return false;
+	            
+	            try{
+	            this.kagScript.RemoveTagCallBack("face");
+	            this.kagScript.AddTagCallBack("face", new KagScript.KagTagCallBack(this.OnYotogiKagManagerTagFace));
+	            tagFaceOverride = true;
+	            } catch(Exception ex) { Debug.LogError("kagScriptCallBack : "+ ex);  return false; }
+
+	            this.tagFace = getMethod<YotogiKagManager, Func<KagTagSupport, bool>>(ykm, "TagFace");
+	            if (IsNull(this.tagFace)) return false;
+			}
 
             bool success = true;
             foreach(string sn in sliderName) success &= sp[sn].InitOnUpdate();
@@ -681,19 +846,16 @@ namespace CM3D2.AddYotogiSlider.Plugin
             return true;
         }
 
-        private void dummyWin(int winID)
-        {
-            
-        }
+        private void dummyWin(int winID) {}
 
         private void addYotogiSlider(int winID)
         {
-            Rect baseRect = pv.InsideRect(winRect);
-            Rect headerRect = new Rect(baseRect.x, baseRect.y, baseRect.width, pv.Line("H1"));
-            Rect conRect = new Rect(baseRect.x, baseRect.y + (headerRect.height + pv.Margin)
-                                   ,baseRect.width, baseRect.height - (headerRect.height + pv.Margin));
-            GUIStyle lStyle = "label";
-            GUIStyle tStyle = "toggle";
+            Rect baseRect     = pv.InsideRect(winRect);
+            Rect headerRect   = new Rect(baseRect.x, baseRect.y, baseRect.width, pv.Line("H1"));
+            Rect conRect      = new Rect(baseRect.x, baseRect.y + (headerRect.height + pv.Margin)
+                                        ,baseRect.width, baseRect.height - (headerRect.height + pv.Margin));
+            GUIStyle lStyle   = "label";
+            GUIStyle tStyle   = "toggle";
             GUIStyle btnStyle = "button";
 
             drawWinHeader(headerRect, "Yotogi Slider");
@@ -792,7 +954,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
                     btnStyle.fontSize = pv.Font("C2");
                     for(int i=0; i<iFaceBlend.Length; i++)
                     {
-                        iFaceBlend[i] = GUI.SelectionGrid(outRectC, iFaceBlend[i], sFaceBlend[i], 4, btnStyle);
+                        iFaceBlend[i] = GUI.SelectionGrid(outRectC, iFaceBlend[i], sFaceBlend[i], sFaceBlend[i].Length, btnStyle);
                         tmp += sFaceBlend[i][iFaceBlend[i]];
                         outRectC.y += outRectC.height;
                     }
@@ -954,33 +1116,12 @@ namespace CM3D2.AddYotogiSlider.Plugin
             }
         }
 
-    //--------
+		#endregion
 
-        private bool canStart()
-        {
-            return initCompleted && isActive(goCommandUnit) && yotogiPlayManager.fade_status == WfScreenChildren.FadeStatus.Wait;
-        }
 
-        private float calcWinHeight()
-        {
-            return pv.Margin * 2 
-                 + pv.Font("H1") + pv.Margin * 1 
-                 + pv.Line("C2") * ( 4 + 1 + 1 + 3 + 7 + (bToggleAheSliderVisible ? 1 : 0) + (bToggleHaraSliderVisible ? 1 : 0) )
-                 + pv.Margin * 5 + pv.PropPx(5);
-        }
-        
-        private Color toggleColor(bool b)
-        {
-            return b ? new Color(1f, 1f, 1f, 1f) : new Color(0.7f, 0.0f, 0.0f, 1f);
-        }
 
-        private string toggleText(bool b)
-        {
-            return b ? "Enabled" : "Disabled";
-        }
-
-    //--------
-
+		#region AutoAHE/BOTE, WinAnime
+	
         private void initAnimeOnCommand()
         {
             if (bEnabled["AHE"]) 
@@ -1082,8 +1223,36 @@ namespace CM3D2.AddYotogiSlider.Plugin
             GUI.color = new Color(GUI.color.r, GUI.color.g, GUI.color.b, x[1]);
         }
     
+		#endregion
 
-    //--------
+
+
+		#region Utility methods
+	
+        private bool canStart()
+        {
+            return initCompleted && isActive(goCommandUnit) && yotogiPlayManager.fade_status == WfScreenChildren.FadeStatus.Wait;
+        }
+
+        private float calcWinHeight()
+        {
+            return pv.Margin * 2 
+                 + pv.Font("H1") + pv.Margin * 1 
+                 + pv.Line("C2") * ( 4 + 1 + 1 + 3 + 7 + (bToggleAheSliderVisible ? 1 : 0) + (bToggleHaraSliderVisible ? 1 : 0) )
+                 + pv.Margin * 5 + pv.PropPx(5);
+        }
+        
+        private Color toggleColor(bool b)
+        {
+            return b ? new Color(1f, 1f, 1f, 1f) : new Color(0.7f, 0.0f, 0.0f, 1f);
+        }
+
+        private string toggleText(bool b)
+        {
+            return b ? "Enabled" : "Disabled";
+        }
+
+		//----
 
         internal static void writeTrans(Transform t, int level, StreamWriter writer)
         {
@@ -1099,15 +1268,15 @@ namespace CM3D2.AddYotogiSlider.Plugin
             if (level == 0) writer.Close();
         }
 
-        internal static bool isNull<T>(T t) where T : class
+        internal static bool IsNull<T>(T t) where T : class
         {
             return (t == null) ? true : false;
         }
         
-        internal static bool isNull<T>(T t, string s) where T : class
+        internal static bool IsNull<T>(T t, string s) where T : class
         {
             if(t == null) Debug.LogError(AddYotogiSlider.PluginName +" : "+ s);
-            return isNull<T>(t);
+            return IsNull<T>(t);
         }
 
         internal static bool goExist(string name)
@@ -1140,5 +1309,243 @@ namespace CM3D2.AddYotogiSlider.Plugin
             return (TResult)field.GetValue(inst);
         }
 
+		#endregion
+		
     }
+
+}
+
+namespace UnityObsoleteGui
+{
+
+	public class Window01
+	{
+
+		#region Variables
+
+		private static List<int> winIDs = new List<int>();
+
+		private int winID;
+		private Rect winRect;
+		private List<Element> elements = new List<Element>();
+		private Vector2 hScrollViewPos = Vector2.zero;
+		private Vector2 vScrollViewPos = Vector2.zero;
+
+		public string HeaderText;
+		public string TitleText;
+		public float Left   { get{ return winRect.x; } }
+		public float Top    { get{ return winRect.y; } }
+		public float Width  { get{ return winRect.width; } }
+		public float Height { get{ return winRect.height; } }
+
+		#endregion
+
+
+
+		#region Enums
+		
+		[Flags]
+		public enum Type
+		{
+			Normal  = 0x00,
+			Grid    = 0x01,
+			HScroll = 0x02,
+			VScroll = 0x04
+		}
+
+		#endregion
+
+
+
+		#region Nested classes
+		
+		public class Element
+		{
+			protected string name;
+			protected Rect rect;
+			protected bool absolute = false;
+			
+			public string Name  { get{ return name; } }
+			public float Left   { get{ return rect.x; } }
+			public float Top    { get{ return rect.y; } }
+			public float Width  { get{ return rect.width; } }
+			public float Height { get{ return rect.height; } }
+
+			public Element() {}
+			public Element(string name, Rect rect) : this(name, rect, false) {}
+			public Element(string name, Rect rect, bool absolute)
+			{
+				this.name     = name; 
+				this.rect     = rect;
+				this.absolute = absolute;
+			}
+			
+			public virtual void Draw(float x, float y) {}
+		}
+
+		#endregion
+
+
+
+		#region Methods
+
+		public Window01(Rect ratio, List<Element> elements)
+		{
+			winID = this.GetHashCode();
+			winRect = PV.PropScreen(ratio);
+			if (elements.Count > 0) this.elements = new List<Element>(elements);
+			winIDs.Add(winID);
+		}
+		public Window01(Rect ratio) : this(ratio, new List<Element>()) {}
+
+
+		public void AddElement(Element element)
+		{
+			if (element != null && !elements.Contains(element))
+			{
+				elements.Add(element);
+			}
+		}
+
+		public void RemoveElement(string name)
+		{
+			if (name != "")
+			{
+				Element ele = elements.FirstOrDefault(e => e.Name == name);
+				if (ele != null) elements.Remove(ele);
+			}
+		}
+
+		public void DrawWindow()
+		{
+	        GUIStyle winStyle  = "box";
+	        winStyle.fontSize  = PV.Font("C1");
+	        winStyle.alignment = TextAnchor.UpperRight;
+
+			winRect = GUI.Window(winID, winRect, drawWindow, HeaderText, winStyle);
+		}
+		
+		private void drawWindow(int id)
+		{
+            Rect baseRect     = PV.InsideRect(winRect);
+            Rect headerRect   = new Rect(baseRect.x, baseRect.y, baseRect.width, PV.Line("H1"));
+            Rect conRect      = new Rect(baseRect.x, baseRect.y + (headerRect.height + PV.Margin)
+                                        ,baseRect.width, baseRect.height - (headerRect.height + PV.Margin));
+
+	        GUIStyle labelStyle = "label";
+	        labelStyle.fontSize = PV.Font("H1");
+	        GUI.Label(headerRect, TitleText, labelStyle);
+
+	        GUI.BeginGroup(conRect);
+	        {
+	            Rect outRectC = new Rect(0, 0, conRect.width, 0);
+	                
+				foreach (Element ele in elements)
+				{
+                    ele.Draw(outRectC.x, outRectC.y);
+                    outRectC.x += ele.Height;
+	            }
+	        }
+	        GUI.EndGroup();
+	        GUI.DragWindow();
+		}
+		
+		#endregion
+
+	}
+
+
+    public static class PixelValuesCM3D2
+    {
+
+		#region Variables
+
+        public static float BaseWidth = 1280f;
+        public static float PropRatio = 0.6f;
+        public static int Margin;
+
+        private static Dictionary<string, int> font = new Dictionary<string, int>();
+        private static Dictionary<string, int> line = new Dictionary<string, int>();
+        private static Dictionary<string, int> sys =  new Dictionary<string, int>();
+
+		#endregion
+
+
+
+		#region Methods
+
+        static PixelValuesCM3D2()
+        {
+            Margin = PropPx(10);
+
+            font["C1"] = 11;
+            font["C2"] = 12;
+            font["H1"] = 14;
+            font["H2"] = 16;
+            font["H3"] = 20;
+
+            line["C1"] = 14;
+            line["C2"] = 18;
+            line["H1"] = 22;
+            line["H2"] = 24;
+            line["H3"] = 30;
+
+            sys["Menu.Height"] = 45;
+            sys["OkButton.Height"] = 95;
+
+            sys["HScrollBar.Width"] = 15;
+        }
+            
+        public static int Font(string key)  { return PropPx(font[key]); }
+        public static int Line(string key)  { return PropPx(line[key]); }
+        public static int Sys(string key)   { return PropPx(sys[key]); }
+
+        public static int Font_(string key) { return font[key]; }
+        public static int Line_(string key) { return line[key]; }
+        public static int Sys_(string key)  { return sys[key]; }
+
+        public static Rect PropScreen(Rect ratio)
+        {
+            return new Rect((Screen.width  - Margin * 2) * ratio.x + Margin
+                           ,(Screen.height - Margin * 2) * ratio.y + Margin
+                           ,(Screen.width  - Margin * 2) * ratio.width
+                           ,(Screen.height - Margin * 2) * ratio.height);
+        }
+
+        public static Rect PropScreenMH(Rect ratio)
+        {
+            Rect r = PropScreen(ratio);
+            r.y += Sys("Menu.Height");
+            r.height -= (Sys("Menu.Height") + Sys("OkButton.Height"));
+
+            return r;
+        }
+
+        public static Rect PropScreenMH(float left, float top, float width, float height, Vector2 last)
+        {
+            Rect r = PropScreen(new Rect((float)(left/(last.x - Margin * 2)), (float)(top/(last.y - Margin * 2)), width, height));
+            r.height -= (Sys("Menu.Height") + Sys("OkButton.Height"));
+
+            return r;
+        }
+
+        public static Rect InsideRect(Rect rect) 
+        {
+            return new Rect(Margin, Margin, rect.width - Margin * 2, rect.height - Margin * 2);
+        }
+
+        public static Rect InsideRect(Rect rect, int height) 
+        {
+            return new Rect(Margin, Margin, rect.width - Margin * 2, height);
+        }
+
+        public static int PropPx(int px) 
+        {
+            return (int)(px * (1f + (Screen.width/BaseWidth - 1f) * PropRatio));
+        }
+
+		#endregion
+
+    }
+
 }
