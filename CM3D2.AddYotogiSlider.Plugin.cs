@@ -20,16 +20,18 @@ namespace CM3D2.AddYotogiSlider.Plugin
 {
 
     [PluginFilter("CM3D2x64"), PluginFilter("CM3D2x86"), PluginFilter("CM3D2VRx64")]
-    [PluginName("CM3D2 AddYotogiSlider"), PluginVersion("0.0.3.4")]
+    [PluginName("CM3D2 AddYotogiSlider"), PluginVersion("0.0.3.5")]
     public class AddYotogiSlider : UnityInjector.PluginBase
     {
         #region Constants
         
         public const string PluginName = "AddYotogiSlider";
-        public const string Version    = "0.0.3.4";
+        public const string Version    = "0.0.3.5";
 
-        private readonly float TimePerInit        = 1f;
+        private readonly float TimePerInit        = 1.00f;
         private readonly float TimePerUpdateSpeed = 0.33f;
+        private readonly float WaitFirstInit      = 5.00f;
+        private readonly float WaitBoneLoad       = 1.00f;
         private readonly string commandUnitName = "/UI Root/YotogiPlayPanel/CommandViewer/SkillViewer/MaskGroup/SkillGroup/CommandParent/CommandUnit";
         private readonly string LogLabel = AddYotogiSlider.PluginName + " : ";
 
@@ -41,19 +43,13 @@ namespace CM3D2.AddYotogiSlider.Plugin
 
         private int   sceneLevel;
         private bool  visible             = false;
-        private bool  initCompleted       = false;
-        private float fPassedTimeOnLevel  = 0f;
-        private float fLastInitTime       = 0f;
-        private float fLastUpdateSpeedTime= 0f;
+        private bool  bInitCompleted      = false;
+        private bool  bFadeInWait         = false;
+        private bool  bLoadBoneAnimetion  = false;
+        private bool  bSyncMotionSpeed    = false;
         private bool  bCursorOnWindow     = false;
-        private bool  canStart 
-        {
-            get
-            {  
-                return initCompleted && isActive(goCommandUnit) 
-                && yotogiPlayManager && yotogiPlayManager.fade_status == WfScreenChildren.FadeStatus.Wait;
-            }
-        }
+        private float fPassedTimeOnLevel  = 0f;
+        private bool  canStart { get{ return bInitCompleted && bLoadBoneAnimetion && !bFadeInWait; } }
         private bool  kagScriptCallbacksOverride = false;
 
         private string[] sKey =  { "WIN", "STATUS", "AHE", "BOTE", "FACEBLEND", "FACEANIME"};
@@ -152,7 +148,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
         private Func<KagTagSupport, bool> orgTagFaceBlend;
 
         private Animation anm_BO_body001;
-        private Animation anm_BO_mbody;
+        private Animation[] anm_BO_mbody;
 
         #endregion
 
@@ -581,19 +577,20 @@ namespace CM3D2.AddYotogiSlider.Plugin
             private string   heightPV     = "C1";
             private string   fontSizePV   = "C1";
 
-            public string CurrentName { get{ return names[currentIndex];} }
+            public int    CurrentIndex { get{ return currentIndex;} }
+            public string CurrentName  { get{ return names[currentIndex];} }
             
             public event EventHandler<ButtonEventArgs> OnClick;
             
-            public YotogiLineSelect(string name, string _label, string[] _names, EventHandler<ButtonEventArgs> _onClick)
+            public YotogiLineSelect(string name, string _label, string[] _names, int def, EventHandler<ButtonEventArgs> _onClick)
             : base(name, new Rect (Window.AutoLayout, Window.AutoLayout, Window.AutoLayout, 0))
             {
                 this.label = _label;
                 this.names = new string[_names.Length];
                 Array.Copy(_names, this.names, _names.Length);
+                this.currentIndex = def;
                 this.OnClick += _onClick;
                 
-                for(int i=0; i<names.Length; i++) if (names[i]==YotogiStageSelectManager.StagePrefab) currentIndex = i;
                 Resize();
             }
             
@@ -806,7 +803,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
         {
             fPassedTimeOnLevel = 0f;
 
-            if (sceneLevel == 14 && sceneLevel != level) finalize();
+            if (level == 14) StartCoroutine( initCoroutine(TimePerInit) );
 
             sceneLevel = level;
         }
@@ -815,41 +812,61 @@ namespace CM3D2.AddYotogiSlider.Plugin
         {
             fPassedTimeOnLevel += Time.deltaTime;
 
-            if (sceneLevel == 14)
+            if (sceneLevel == 14 && bInitCompleted)
             {
-                if (!initCompleted && (fPassedTimeOnLevel - fLastInitTime > TimePerInit))
+                switch (yotogiPlayManager.fade_status)
                 {
-                    initCompleted = initialize();
-                    fLastInitTime = fPassedTimeOnLevel;
-                }
+                    case WfScreenChildren.FadeStatus.Null : 
+                    {
+                        finalize();
+                    }
+                    break;
 
-                if (!canStart) return;
+                    case WfScreenChildren.FadeStatus.FadeInWait :
+                    {
+                        if (!bFadeInWait)
+                        {
+                            bSyncMotionSpeed = false;
+                            bFadeInWait = true;
+                        }
+                    }
+                    break;
 
-                if (Input.GetKeyDown(KeyCode.F5))
-                {
-                    winAnimeRect = window.Rectangle;
-                    visible = !visible;
-                    playAnimeOnInputKeyDown(KeyCode.F5);
-                }
+                    case WfScreenChildren.FadeStatus.Wait :
+                    {
+                        if (bFadeInWait)
+                        {
+                            initOnStartSkill();
+                            bFadeInWait = false;
+                        }
+                        else if (canStart)
+                        {
+                            if (Input.GetKeyDown(KeyCode.F5))
+                            {
+                                winAnimeRect = window.Rectangle;
+                                visible = !visible;
+                                playAnimeOnInputKeyDown(KeyCode.F5);
+                            }
 
-                if (fPassedTimeOnCommand >= 0f) fPassedTimeOnCommand += Time.deltaTime;
+                            if (fPassedTimeOnCommand >= 0f) fPassedTimeOnCommand += Time.deltaTime;
 
-                syncMotionSpeedSlider();
-                updateAnimeOnUpdate();
-                
-                if (yotogiPlayManager.fade_status == WfScreenChildren.FadeStatus.FadeIn)
-                {
-                    maid.SetProp("Hara", iDefHara, false);
-                    updateShapeKeyKupaValue(0f);
+                            updateAnimeOnUpdate();
+                        }
+                    }
+                    break;
+
+                    default : break;
                 }
             }
         }
+
 
         public void OnGUI()
         {
             if (sceneLevel == 14 && canStart)
             {
                 updateAnimeOnGUI();
+
                 if (visible && !pa["WIN.Load"].NowPlaying) 
                 {
                     updateCameraControl();
@@ -878,8 +895,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
 
             playAnimeOnCommand(command_data.basic);
             syncSlidersOnClickCommand(command_data.status);
-            
-            
+
 
             if (command_data.basic.command_type == Yotogi.SkillCommandType.絶頂) 
             {
@@ -998,10 +1014,17 @@ namespace CM3D2.AddYotogiSlider.Plugin
 
         #region Private methods
 
+        private IEnumerator initCoroutine(float waitTime)
+        {
+            yield return new WaitForSeconds(WaitFirstInit);
+            while ( !(bInitCompleted = initialize()) ) yield return new WaitForSeconds(waitTime);
+            Debug.Log(LogLabel +"Initialization complete.");
+        }
+
         private bool initialize()
         {
-            this.goCommandUnit = GameObject.Find(commandUnitName); // 夜伽コマンド画面かどうか
-            if (!this.goCommandUnit) return false;
+            if (!this.goCommandUnit) this.goCommandUnit = GameObject.Find(commandUnitName); 
+            if (!IsActive(this.goCommandUnit)) return false; // 夜伽コマンド画面かどうか
 
             this.maid = GameMain.Instance.CharacterMgr.GetMaid(0);
             if (!this.maid) return false;
@@ -1014,15 +1037,6 @@ namespace CM3D2.AddYotogiSlider.Plugin
 
             this.yotogiParamBasicBar = getInstance<YotogiParamBasicBar>();
             if (!this.yotogiParamBasicBar) return false;
-            
-            GameObject go_BO_body001 = GameObject.Find("_BO_body001");
-            GameObject go_BO_mbody   = GameObject.Find("_BO_mbody");
-            if (!go_BO_body001 || !go_BO_mbody) return false;
-            
-            this.anm_BO_body001 = go_BO_body001.GetComponent<Animation>();
-            this.anm_BO_mbody   = go_BO_mbody.GetComponent<Animation>();
-            if (!this.anm_BO_body001 || !this.anm_BO_mbody) return false;
-
 
             // 夜伽コマンドフック
             {
@@ -1096,6 +1110,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
                 float mind        = (float)maid.Param.status.mind;
                 float reason      = (float)maid.Param.status.reason;
                 float sensitivity = maid.Param.status.correction_data.excite + maid.Param.status.frustration;
+                int   stageIndex  = sStageNames.IndexOf(YotogiStageSelectManager.StagePrefab);
 
                 slider["Excite"]      = new YotogiSlider("Slider:Excite",       -100f, 300f,   0f,              this.OnChangeSliderExcite,      sliderName[0], true);
                 slider["Mind"]        = new YotogiSlider("Slider:Mind",         0f,    mind,   mind,            this.OnChangeSliderMind,        sliderName[1], true);
@@ -1107,12 +1122,12 @@ namespace CM3D2.AddYotogiSlider.Plugin
                 slider["Kupa"]        = new YotogiSlider("Slider:Kupa",         0f,    150f,   0f,              this.OnChangeSliderKupa,        sliderName[7], false);
 
                 toggle["Lipsync"]     = new YotogiToggle("Toggle:Lipsync",      false, " Lipsync cancelling", this.OnChangeToggleLipsync);
-                toggle["Convulsion"]  = new YotogiToggle("Toggle:Convulsion",   false, " Orgasm convulsion", this.OnChangeToggleConvulsion);
+                toggle["Convulsion"]  = new YotogiToggle("Toggle:Convulsion",   false, " Orgasm convulsion",  this.OnChangeToggleConvulsion);
 
                 grid["FaceAnime"]   = new YotogiButtonGrid("GridButton:FaceAnime"  , sFaceNames,            this.OnClickButtonFaceAnime,   6, false);
                 grid["FaceBlend"]   = new YotogiButtonGrid("GridButton:FaceBlend"  , sFaceNames,            this.OnClickButtonFaceBlend,   6, true);
 
-                lSelect["StageSelcet"] = new YotogiLineSelect("LineSelect:StageSelcet", "Stage : ", sStageNames.ToArray(), this.OnClickButtonStageSelect);
+                lSelect["StageSelcet"] = new YotogiLineSelect("LineSelect:StageSelcet", "Stage : ", sStageNames.ToArray(), stageIndex, this.OnClickButtonStageSelect);
 
                 slider["EyeY"].Visible       = false;
                 slider["Hara"].Visible       = false;
@@ -1156,8 +1171,30 @@ namespace CM3D2.AddYotogiSlider.Plugin
                 panel["FaceBlend"].AddChild(grid["FaceBlend"]);
             }
 
-            Debug.Log(LogLabel +"Initialization complete.");
             return true;
+        }
+
+        private void initOnStartSkill()
+        {
+            bLoadBoneAnimetion = false;
+            bSyncMotionSpeed   = true;
+            bKupaFuck          = false;
+            iBoteCount         = 0;
+
+            maid.SetProp("Hara", iDefHara, false);
+            updateShapeKeyKupaValue(0f);
+
+            foreach (KeyValuePair<string, PlayAnime> kvp in pa) if (kvp.Value.NowPlaying) kvp.Value.Stop();
+            
+            StartCoroutine( getBoneAnimetionCoroutine(WaitBoneLoad) );
+
+            bSyncMotionSpeed = true;
+            StartCoroutine( syncMotionSpeedSliderCoroutine(TimePerUpdateSpeed) );
+            
+            //if (lSelect["StageSelcet"].CurrentName != YotogiStageSelectManager.StagePrefab)
+            //{
+            //    GameMain.Instance.BgMgr.ChangeBg(lSelect["StageSelcet"].CurrentName);
+            //}
         }
 
         private void finalize()
@@ -1170,10 +1207,12 @@ namespace CM3D2.AddYotogiSlider.Plugin
             slider.Clear();
             grid.Clear();
             toggle.Clear();
+            lSelect.Clear();
 
-            initCompleted = false;
-            fLastInitTime = 0f;
+            bInitCompleted       = false;
+            bSyncMotionSpeed     = false;
             fPassedTimeOnCommand = -1f;
+            bFadeInWait          = false; 
 
             iLastExcite              = 0;
             iOrgasmCount             = 0;
@@ -1182,6 +1221,8 @@ namespace CM3D2.AddYotogiSlider.Plugin
             
             iDefHara   = 0;
             iBoteCount = 0;
+            
+            bKupaFuck = false;
 
             goCommandUnit                   = null;
             maid                            = null;
@@ -1206,7 +1247,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
           } catch(Exception ex) { Debug.LogError(LogLabel +"finalize() : "+ ex);  return; }
 
         }
-        
+
         //----
         
         private void syncSlidersOnClickCommand(Yotogi.SkillData.Command.Data.Status cmStatus)
@@ -1220,10 +1261,13 @@ namespace CM3D2.AddYotogiSlider.Plugin
             if (panel["Status"].Enabled && slider["Reason"].Pin)  updateMaidReason((int)slider["Reason"].Value);
             else slider["Reason"].Value = (float)maid.Param.status.cur_reason;
 
+            // コマンド実行によるfrustration変動でfrustrationは0-100内に補正される為、
+            // Statusパネル有効時はコマンド以前のスライダー値より感度を計算して表示
+            // メイドのfrustrationを実際に弄るのはコマンド直前のみ
             slider["Sensitivity"].Value = (float)( maid.Param.status.correction_data.excite
                 + (panel["Status"].Enabled ? iLastSliderFrustration + cmStatus.frustration : maid.Param.status.frustration)
                 + (maid.Param.status.cur_reason < 20 ? 20 : 0) );
-            
+
             if (panel["Status"].Enabled && slider["MotionSpeed"].Pin) updateMotionSpeed(slider["MotionSpeed"].Value);
             else foreach (AnimationState stat in anm_BO_body001) if (stat.enabled) slider["MotionSpeed"].Value = stat.speed * 100f;
 
@@ -1231,27 +1275,30 @@ namespace CM3D2.AddYotogiSlider.Plugin
             slider["Hara"].Value = (float)maid.GetProp("Hara").value;
         }
 
-        private void syncMotionSpeedSlider()
+        private IEnumerator syncMotionSpeedSliderCoroutine(float waitTime)
         {
-            if (fPassedTimeOnLevel - fLastUpdateSpeedTime > TimePerUpdateSpeed)
+            while (bSyncMotionSpeed)
             {
-                if (panel["Status"].Enabled && slider["MotionSpeed"].Pin && !pa["AHE.絶頂.0"].NowPlaying) 
+                if (bLoadBoneAnimetion)
                 {
-                    updateMotionSpeed(slider["MotionSpeed"].Value);
-                }
-                else
-                {
-                    foreach (AnimationState stat in anm_BO_body001) 
+                    if (panel["Status"].Enabled && slider["MotionSpeed"].Pin && !pa["AHE.絶頂.0"].NowPlaying) 
                     {
-                        if (stat.enabled) 
+                        updateMotionSpeed(slider["MotionSpeed"].Value);
+                    }
+                    else
+                    {
+                        foreach (AnimationState stat in anm_BO_body001) 
                         {
-                            slider["MotionSpeed"].Value = stat.speed * 100f;
-                            //Debug.Log(stat.name +":"+ stat.speed + ":"+ stat.enabled);
+                            if (stat.enabled) 
+                            {
+                                slider["MotionSpeed"].Value = stat.speed * 100f;
+                                //Debug.Log(stat.name +":"+ stat.speed + ":"+ stat.enabled);
+                            }
                         }
                     }
                 }
-                fLastUpdateSpeedTime = fPassedTimeOnLevel;
-                //Debug.Log(fLastUpdateSpeedTime);
+                
+                yield return new WaitForSeconds(waitTime);
             }
         }
 
@@ -1500,7 +1547,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
         private void updateMaidFrustration(int value)
         {
             param.Status tmp = (param.Status)maidStatusInfo.GetValue(maid.Param);
-            tmp.frustration = value - maid.Param.status.correction_data.excite - (maid.Param.status.cur_reason < 20 ? 20 : 0);
+            tmp.frustration = value;
             maidStatusInfo.SetValue(maid.Param, tmp);
         }
 
@@ -1557,8 +1604,11 @@ namespace CM3D2.AddYotogiSlider.Plugin
 
         private void updateMotionSpeed(float value)
         {
-            foreach(AnimationState stat in anm_BO_body001) if (stat.enabled) stat.speed = value/100f;
-            foreach(AnimationState stat in anm_BO_mbody)   if (stat.enabled) stat.speed = value/100f;
+            foreach (AnimationState stat in anm_BO_body001) if (stat.enabled) stat.speed = value/100f;
+            foreach (Animation anm in anm_BO_mbody) 
+            {
+                foreach (AnimationState stat in anm)  if (stat.enabled) stat.speed = value/100f;
+            }
         }
 
 
@@ -1580,11 +1630,42 @@ namespace CM3D2.AddYotogiSlider.Plugin
             updateMotionSpeed(x[1]);
         }
 
+        private int getMaidFrustration()
+        {
+            param.Status tmp = (param.Status)maidStatusInfo.GetValue(maid.Param);
+            return tmp.frustration;
+        }
+
         private int getSliderFrustration()
         {
             return (int)(slider["Sensitivity"].Value - maid.Param.status.correction_data.excite + (maid.Param.status.cur_reason < 20 ? 20 : 0));
         }
         
+        private IEnumerator getBoneAnimetionCoroutine(float waitTime)
+        {
+            yield return new WaitForSeconds(waitTime);
+
+            this.anm_BO_body001 = maid.body0.GetAnimation();
+
+            List<GameObject> go_BO_mbody = new List<GameObject>();
+
+            int i = 0;
+            while(true)
+            {
+                GameObject go = GameObject.Find("Man["+ i +"]/Offset/_BO_mbody");
+                if (!go) break;
+
+                go_BO_mbody.Add(go);
+                i++;
+            }
+                
+            this.anm_BO_mbody = new Animation[i];
+            for (int j=0; j<i; j++) anm_BO_mbody[j] = go_BO_mbody[j].GetComponent<Animation>();
+            
+            bLoadBoneAnimetion = true;
+            //Debug.Log(LogLabel +"BoneAnimetion : "+ i);
+        }
+
         private int checkGroupKupa(string s)
         {
             if (!s.Contains("アナル")) 
@@ -1607,6 +1688,24 @@ namespace CM3D2.AddYotogiSlider.Plugin
 
 
         #region Utility methods
+
+
+        internal static IEnumerator CheckFadeStatus(WfScreenChildren wsc, float waitTime)
+        {
+            while(true) 
+            {
+                Debug.Log(wsc.fade_status.ToString());
+                yield return new WaitForSeconds(waitTime);
+            }
+        }
+        
+        internal static string GetFullPath(GameObject go)
+        {
+            string s = go.name;
+            if (go.transform.parent != null) s = GetFullPath(go.transform.parent.gameObject) + "/" + s;
+            
+            return s;
+        }
 
         internal static void WriteComponent(GameObject go)
         {
@@ -1648,12 +1747,12 @@ namespace CM3D2.AddYotogiSlider.Plugin
             if(t == null)
             {
                 Debug.LogError(s);
-                return false;
+                return true;
             }
-            else return true;
+            else return false;
         }
 
-        internal static bool isActive(GameObject go)
+        internal static bool IsActive(GameObject go)
         {
             return go ? go.activeInHierarchy : false;
         }
