@@ -20,13 +20,13 @@ namespace CM3D2.AddYotogiSlider.Plugin
 {
 
     [PluginFilter("CM3D2x64"), PluginFilter("CM3D2x86"), PluginFilter("CM3D2VRx64")]
-    [PluginName("CM3D2 AddYotogiSlider"), PluginVersion("0.0.3.5")]
+    [PluginName("CM3D2 AddYotogiSlider"), PluginVersion("0.0.3.6")]
     public class AddYotogiSlider : UnityInjector.PluginBase
     {
         #region Constants
         
         public const string PluginName = "AddYotogiSlider";
-        public const string Version    = "0.0.3.5";
+        public const string Version    = "0.0.3.6";
 
         private readonly float TimePerInit        = 1.00f;
         private readonly float TimePerUpdateSpeed = 0.33f;
@@ -76,6 +76,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
         private float fPassedTimeOnCommand   = -1f;
 
         //AutoAHE
+        private bool     bOrgasmAvailable    = false;                                                     //BodyShapeKeyチェック
         private float    fEyePosToSliderMul  = 5000f;
         private int      idxAheOrgasm   { get{ return (int)Math.Min(Math.Floor(iOrgasmCount / 3f), 2); } }//絶頂回数3,6で変化
         private int[]    iAheExcite          = new int[] { 267, 233, 200 };                               //適用の興奮閾値
@@ -98,8 +99,9 @@ namespace CM3D2.AddYotogiSlider.Plugin
         private int iBoteCount     = 0;   //中出し回数
         
         //AutoKUPA
-        private bool  bKupaFuck = false;       //挿入しているかどうか
-        private int[] iKupaMax  = { 100, 50 }; //最大の局部開き値
+        private bool  bKupaAvailable = false;       //BodyShapeKeyチェック
+        private bool  bKupaFuck      = false;       //挿入しているかどうか
+        private int[] iKupaMax       = { 100, 50 }; //最大の局部開き値
 
         //FaceNames
         private string[] sFaceNames = 
@@ -1101,7 +1103,10 @@ namespace CM3D2.AddYotogiSlider.Plugin
                 iOrgasmCount    = 0;
                 iAheOrgasmChain = 0;
             }
-
+            
+            // BodyShapeKeyCheck
+            bKupaAvailable   = maid.body0.goSlot[0].morph.hash.ContainsKey("kupa");
+            bOrgasmAvailable = maid.body0.goSlot[0].morph.hash.ContainsKey("orgasm");
 
             // Window
             {
@@ -1150,7 +1155,10 @@ namespace CM3D2.AddYotogiSlider.Plugin
                 window.AddHorizontalSpacer();
 
                 panel["AutoAHE"] = window.AddChild<YotogiPanel>( new YotogiPanel("Panel:AutoAHE", "AutoAHE") );
-                panel["AutoAHE"].AddChild(toggle["Convulsion"]);
+                if (bOrgasmAvailable)
+                {
+                    panel["AutoAHE"].AddChild(toggle["Convulsion"]);
+                }
                 panel["AutoAHE"].AddChild(slider["EyeY"]);
                 window.AddHorizontalSpacer();
 
@@ -1158,9 +1166,13 @@ namespace CM3D2.AddYotogiSlider.Plugin
                 panel["AutoBOTE"].AddChild(slider["Hara"]);
                 window.AddHorizontalSpacer();
 
-                panel["AutoKUPA"] = window.AddChild<YotogiPanel>( new YotogiPanel("Panel:AutoKUPA", "AutoKUPA") );
-                panel["AutoKUPA"].AddChild(slider["Kupa"]);
-                window.AddHorizontalSpacer();
+                panel["AutoKUPA"] = new YotogiPanel("Panel:AutoKUPA", "AutoKUPA");
+                if (bKupaAvailable)
+                {
+                    panel["AutoKUPA"] = window.AddChild(panel["AutoKUPA"]);
+                    panel["AutoKUPA"].AddChild(slider["Kupa"]);
+                    window.AddHorizontalSpacer();
+                }
 
                 panel["FaceAnime"] = window.AddChild<YotogiPanel>( new YotogiPanel("Panel:FaceAnime", "FaceAnime", YotogiPanel.HeaderUI.Face) );
                 panel["FaceAnime"].AddChild(toggle["Lipsync"]);
@@ -1182,7 +1194,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
             iBoteCount         = 0;
 
             maid.SetProp("Hara", iDefHara, false);
-            updateShapeKeyKupaValue(0f);
+            if (bKupaAvailable) updateShapeKeyKupaValue(0f);
 
             foreach (KeyValuePair<string, PlayAnime> kvp in pa) if (kvp.Value.NowPlaying) kvp.Value.Stop();
             
