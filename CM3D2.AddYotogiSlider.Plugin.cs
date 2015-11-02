@@ -20,13 +20,13 @@ namespace CM3D2.AddYotogiSlider.Plugin
 {
 
     [PluginFilter("CM3D2x64"), PluginFilter("CM3D2x86"), PluginFilter("CM3D2VRx64")]
-    [PluginName("CM3D2 AddYotogiSlider"), PluginVersion("0.0.3.6")]
+    [PluginName("CM3D2 AddYotogiSlider"), PluginVersion("0.0.4.7")]
     public class AddYotogiSlider : UnityInjector.PluginBase
     {
         #region Constants
         
         public const string PluginName = "AddYotogiSlider";
-        public const string Version    = "0.0.3.6";
+        public const string Version    = "0.0.4.7";
 
         private readonly float TimePerInit        = 1.00f;
         private readonly float TimePerUpdateSpeed = 0.33f;
@@ -78,7 +78,11 @@ namespace CM3D2.AddYotogiSlider.Plugin
         //AutoAHE
         private bool     bOrgasmAvailable    = false;                                                     //BodyShapeKeyチェック
         private float    fEyePosToSliderMul  = 5000f;
-        private int      idxAheOrgasm   { get{ return (int)Math.Min(Math.Floor(iOrgasmCount / 3f), 2); } }//絶頂回数3,6で変化
+        private float    fOrgasmsPerAheLevel = 3f;
+        private int      idxAheOrgasm 
+        { 
+            get{ return (int)Math.Min( Math.Max( Math.Floor((iOrgasmCount - 1) / fOrgasmsPerAheLevel) , 0) , 2); } 
+        }
         private int[]    iAheExcite          = new int[] { 267, 233, 200 };                               //適用の興奮閾値
         private float    fAheDefEye          = 0f;
         private float    fAheLastEye         = 0f;
@@ -88,8 +92,8 @@ namespace CM3D2.AddYotogiSlider.Plugin
         private float[]  fAheOrgasmEyeMin    = new float[] { 30f, 35f, 40f };                             //絶頂時の瞳の最小値
         private float[]  fAheOrgasmSpeed     = new float[] { 90f, 80f, 70f };                             //絶頂時のモーション速度
         private float[]  fAheOrgasmConvulsion= new float[] { 60f, 80f, 100f };                            //絶頂時の痙攣度
-        private string[] fAheOrgasmFace      = new string[] { "エロ放心", "エロ好感３", "通常射精後１" }; //絶頂時のFace
-        private string[] fAheOrgasmFaceBlend = new string[] { "頬１涙１", "頬２涙２", "頬３涙３よだれ" }; //絶頂時のFaceBlend
+        private string[] sAheOrgasmFace      = new string[] { "エロ放心", "エロ好感３", "通常射精後１" }; //絶頂時のFace
+        private string[] sAheOrgasmFaceBlend = new string[] { "頬１涙１", "頬２涙２", "頬３涙３よだれ" }; //絶頂時のFaceBlend
         private int      iAheOrgasmChain     = 0;
 
         //AutoBOTE
@@ -99,9 +103,16 @@ namespace CM3D2.AddYotogiSlider.Plugin
         private int iBoteCount     = 0;   //中出し回数
         
         //AutoKUPA
-        private bool  bKupaAvailable = false;       //BodyShapeKeyチェック
-        private bool  bKupaFuck      = false;       //挿入しているかどうか
-        private int[] iKupaMax       = { 100, 50 }; //最大の局部開き値
+        private bool  bKupaAvailable    = false;             //BodyShapeKeyチェック
+        private bool  bKupaFuck         = false;             //挿入しているかどうか
+        private int   iKupaDef                = 0;           
+        private int   iKupaIncrementPerOrgasm = 0;           //絶頂回数当たりの通常時局部開き値の増加値
+        private int   iKupaNormalMax          = 0;           //通常時の局部開き最大値
+        private int   iKupaMin
+        {
+            get{ return (int)Mathf.Max(iKupaDef + iKupaIncrementPerOrgasm * iOrgasmCount, iKupaNormalMax); }
+        }
+        private int[] iKupaValue              = { 100, 50 }; //最大の局部開き値
 
         //FaceNames
         private string[] sFaceNames = 
@@ -903,8 +914,8 @@ namespace CM3D2.AddYotogiSlider.Plugin
             {
                 if (!panel["FaceAnime"].Enabled && pa["AHE.絶頂.0"].NowPlaying)
                 {
-                    maid.FaceAnime(fAheOrgasmFace[idxAheOrgasm], 5f, 0);
-                    panel["FaceAnime"].HeaderUILabelText = fAheOrgasmFace[idxAheOrgasm];
+                    maid.FaceAnime(sAheOrgasmFace[idxAheOrgasm], 5f, 0);
+                    panel["FaceAnime"].HeaderUILabelText = sAheOrgasmFace[idxAheOrgasm];
                 }
             }
         }
@@ -1182,6 +1193,35 @@ namespace CM3D2.AddYotogiSlider.Plugin
                 panel["FaceBlend"] = window.AddChild<YotogiPanel>( new YotogiPanel("Panel:FaceBlend", "FaceBlend", YotogiPanel.HeaderUI.Face) );
                 panel["FaceBlend"].AddChild(grid["FaceBlend"]);
             }
+            
+            // Preferences
+            {
+                ReloadConfig();
+
+                fOrgasmsPerAheLevel = parseExIni("AutoAHE", "OrgasmsPerLevel", fOrgasmsPerAheLevel);
+                fAheEyeDecrement    = parseExIni("AutoAHE", "EyeDecrement", fAheEyeDecrement);
+                for (int i = 0; i<3; i++) 
+                {
+                    iAheExcite[i]           = (int)parseExIni("AutoAHE", "ExciteThreshold_"+ i, iAheExcite[i]);
+                    fAheNormalEyeMax[i]     = parseExIni("AutoAHE", "NormalEyeMax_"+ i, fAheNormalEyeMax[i]);
+                    fAheOrgasmEyeMax[i]     = parseExIni("AutoAHE", "OrgasmEyeMax_"+ i, fAheOrgasmEyeMax[i]);
+                    fAheOrgasmEyeMin[i]     = parseExIni("AutoAHE", "OrgasmEyeMin_"+ i, fAheOrgasmEyeMin[i]);
+                    fAheOrgasmSpeed[i]      = parseExIni("AutoAHE", "OrgasmMotionSpeed_"+ i, fAheOrgasmSpeed[i]);
+                    fAheOrgasmConvulsion[i] = parseExIni("AutoAHE",  "OrgasmConvulsion_"+ i, fAheOrgasmConvulsion[i]);
+                    sAheOrgasmFace[i]       = parseExIniRaw("AutoAHE", "OrgasmFace_"+ i, sAheOrgasmFace[i]);
+                    sAheOrgasmFaceBlend[i]  = parseExIniRaw("AutoAHE", "OrgasmFaceBlend_"+ i, sAheOrgasmFaceBlend[i]);
+                }
+
+                iHaraIncrement = (int)parseExIni("AutoBOTE", "Increment", iHaraIncrement);
+                iBoteHaraMax   = (int)parseExIni("AutoBOTE", "Max",       iBoteHaraMax);
+
+                iKupaIncrementPerOrgasm = (int)parseExIni("AutoKUPA", "IncrementPerOrgasm", iKupaIncrementPerOrgasm);
+                iKupaNormalMax          = (int)parseExIni("AutoKUPA", "NormalMax", iKupaNormalMax);
+                for (int i = 0; i<2; i++) 
+                {
+                    iKupaValue[i] = (int)parseExIni("AutoKUPA", "Value_"+ i, iKupaValue[i]);
+                }
+            }
 
             return true;
         }
@@ -1328,7 +1368,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
 
                 for (int i=0; i<2; i++)
                 {
-                    if (pa["KUPA.挿入."+ i].NowPlaying) updateShapeKeyKupaValue(iKupaMax[i]);
+                    if (pa["KUPA.挿入."+ i].NowPlaying) updateShapeKeyKupaValue(iKupaValue[i]);
                     pa["KUPA.挿入."+ i].Stop();
                 }
             }
@@ -1351,7 +1391,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
 
             if (panel["AutoKUPA"].Enabled) 
             {
-                if (pa["KUPA.止める"].NowPlaying) updateMaidHaraValue(0f);
+                if (pa["KUPA.止める"].NowPlaying) updateShapeKeyKupaValue(iKupaMin);
                 
                 pa["KUPA.止める"].Stop();
             }
@@ -1425,28 +1465,31 @@ namespace CM3D2.AddYotogiSlider.Plugin
 
             if (panel["AutoKUPA"].Enabled) 
             {
-                if (data.command_type == Yotogi.SkillCommandType.挿入)
+                if (data.command_type == Yotogi.SkillCommandType.挿入 && !data.name.Contains("口を責める"))
                 {
                     if (!bKupaFuck)
                     {
                         int i = checkGroupKupa(data.group_name);
                         if (i >= 0) 
                         {
-                            pa["KUPA.挿入."+ i].Play(0f, iKupaMax[i]);
+                            //Debug.Log(iKupaDef +":"+ iKupaIncrementPerOrgasm  +":"+ iOrgasmCount +"="+ iKupaMin);
+                            pa["KUPA.挿入."+ i].Play(iKupaMin, iKupaValue[i]);
                             bKupaFuck = true;
                         }
                     }
                 }
-                else if (data.command_type == Yotogi.SkillCommandType.止める)
+                else if (data.command_type == Yotogi.SkillCommandType.止める || data.name.Contains("口を責める"))
                 {
-                    pa["KUPA.止める"].Play(slider["Kupa"].Value, 0f);
+                    //Debug.Log(iKupaDef +":"+ iKupaIncrementPerOrgasm  +":"+ iOrgasmCount +"="+ iKupaMin);
+                    pa["KUPA.止める"].Play(slider["Kupa"].Value, iKupaMin);
                     bKupaFuck = false;
                 }
                 else if (data.command_type == Yotogi.SkillCommandType.絶頂)
                 {
                     if (data.group_name.Contains("愛撫") || data.name.Contains("外出し"))
                     {
-                        pa["KUPA.止める"].Play(slider["Kupa"].Value, 0f);
+                        //Debug.Log(iKupaDef +":"+ iKupaIncrementPerOrgasm  +":"+ iOrgasmCount +"="+ iKupaMin);
+                        pa["KUPA.止める"].Play(slider["Kupa"].Value, iKupaMin);
                         bKupaFuck = false;
                     }
                 }
@@ -1480,8 +1523,8 @@ namespace CM3D2.AddYotogiSlider.Plugin
                 if (pa["AHE.絶頂.0"].NowPlaying) 
                 {
                     pa["AHE.絶頂.0"].Update();
-                    maid.FaceBlend(fAheOrgasmFaceBlend[idxAheOrgasm]);
-                    panel["FaceBlend"].HeaderUILabelText = fAheOrgasmFaceBlend[idxAheOrgasm];
+                    maid.FaceBlend(sAheOrgasmFaceBlend[idxAheOrgasm]);
+                    panel["FaceBlend"].HeaderUILabelText = sAheOrgasmFaceBlend[idxAheOrgasm];
                 }
     
                 for (int i=0; i<3; i++) if (pa["AHE.痙攣."+ i].NowPlaying) pa["AHE.痙攣."+ i].Update();
@@ -1684,14 +1727,50 @@ namespace CM3D2.AddYotogiSlider.Plugin
             {
                 if (s.Contains("セックス") || s.Contains("太バイブ")) return 0;
 
-                if (s.Contains("愛撫") || s.Contains("オナニー")) return 1;
-                
+                if (s.Contains("愛撫") || s.Contains("オナニー") || s.Contains("バイブ")) return 1;
+
                 if (s == "詰られ騎乗位") return 0;
             }
 
+            if (s == "バイブ責めアナルセックス正常位") return 1;
             if (s == "アナルバイブ責めセックス後背位") return 0;
             
             return -1;
+        }
+        
+        private float parseExIni(string section, string key, float def)
+        {
+            float x;
+            if (Preferences.HasSection(section))
+            {
+                if (Preferences[section].HasKey(key))
+                {
+                    if (Single.TryParse(Preferences[section][key].Value, out x))
+                    {
+                        //Debug.Log(section + ":"+ key + ":"+ x);
+                        return x;
+                    }
+                }
+            }
+            
+            //Debug.Log(section + ":"+ key + ":default");
+            return def;
+        }
+
+        private string parseExIniRaw(string section, string key, string def)
+        {
+            if (Preferences.HasSection(section))
+            {
+                if (Preferences[section].HasKey(key))
+                {
+                    //Debug.Log(section + ":"+ key + ":"+ Preferences[section][key].Value);
+                    return Preferences[section][key].Value;
+                    
+                }
+            }
+            
+            //Debug.Log(section + ":"+ key + ":default");
+            return def;
         }
 
 

@@ -17,6 +17,13 @@ zipファイルの中にあるUnityInjectorフォルダをCM3D2フォルダにD&
 
 ##更新履歴
 
+#####0.0.4.7
+* AutoAHE/BOTE/KUPAの各種数値をiniファイルで設定可能に変更。(./Config/AddYotogiSlider.ini)
+* AHE絶頂回数に従ってKUPA値が一定以上に下がらない様に変更。(改造スレ5>>446)
+* バイブ責め系スキル時にAutoKUPAが機能していなかったバグ修正。
+* アニメ再生中にコマンド実行時、kupaキー操作がharaキー操作になっていたバグ修正。
+
+
 #####0.0.3.6
 * 'kupa','orgasm'対応bodyで無い場合に該当項目のUIを表示しない内容に変更。
 * 'kupa','orgasm'対応bodyで無い場合にエラーメッセージが出るバグ修正。
