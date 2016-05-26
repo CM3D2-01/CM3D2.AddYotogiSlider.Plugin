@@ -113,6 +113,8 @@ namespace CM3D2.AddYotogiSlider.Plugin
             get{ return (int)Mathf.Min(iKupaDef + iKupaIncrementPerOrgasm * iOrgasmCount, iKupaNormalMax); }
         }
         private int[] iKupaValue              = { 100, 50 }; //最大の局部開き値
+        private int   iKupaWaitingValue       = 5;           //待機モーションでの局部開き値幅
+        private float fPassedTimeOnAutoKupaWaiting = 0;
 
         //AnalKUPA
         private bool  bAnalKupaAvailable          = false;   //BodyShapeKeyチェック
@@ -125,6 +127,8 @@ namespace CM3D2.AddYotogiSlider.Plugin
             get{ return (int)Mathf.Min(iAnalKupaDef + iAnalKupaIncrementPerOrgasm * iOrgasmCount, iAnalKupaNormalMax); }
         }
         private int[] iAnalKupaValue              = { 100, 50 }; //最大のアナル開き値
+        private int   iAnalKupaWaitingValue       = 5;           //待機モーションでのアナル開き値幅
+        private float fPassedTimeOnAutoAnalKupaWaiting = 0;
 
         //FaceNames
         private string[] sFaceNames = 
@@ -1242,6 +1246,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
 
                 iKupaIncrementPerOrgasm = (int)parseExIni("AutoKUPA", "IncrementPerOrgasm", iKupaIncrementPerOrgasm);
                 iKupaNormalMax          = (int)parseExIni("AutoKUPA", "NormalMax", iKupaNormalMax);
+                iKupaWaitingValue       = (int)parseExIni("AutoKUPA", "WaitingValue", iKupaWaitingValue);
                 for (int i = 0; i<2; i++) 
                 {
                     iKupaValue[i] = (int)parseExIni("AutoKUPA", "Value_"+ i, iKupaValue[i]);
@@ -1249,6 +1254,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
 
                 iAnalKupaIncrementPerOrgasm = (int)parseExIni("AutoKUPA_Anal", "IncrementPerOrgasm", iAnalKupaIncrementPerOrgasm);
                 iAnalKupaNormalMax          = (int)parseExIni("AutoKUPA_Anal", "NormalMax", iAnalKupaNormalMax);
+                iAnalKupaWaitingValue       = (int)parseExIni("AutoKUPA_Anal", "WaitingValue", iAnalKupaWaitingValue);
                 for (int i = 0; i<2; i++) 
                 {
                     iAnalKupaValue[i] = (int)parseExIni("AutoKUPA", "Value_"+ i, iAnalKupaValue[i]);
@@ -1626,12 +1632,51 @@ namespace CM3D2.AddYotogiSlider.Plugin
             
             if (panel["AutoKUPA"].Enabled) 
             {
-                if (pa["KUPA.挿入.0"].NowPlaying) pa["KUPA.挿入.0"].Update();
-                if (pa["KUPA.挿入.1"].NowPlaying) pa["KUPA.挿入.1"].Update();
-                if (pa["KUPA.止める"].NowPlaying) pa["KUPA.止める"].Update();
-                if (pa["AKPA.挿入.0"].NowPlaying) pa["AKPA.挿入.0"].Update();
-                if (pa["AKPA.挿入.1"].NowPlaying) pa["AKPA.挿入.1"].Update();
-                if (pa["AKPA.止める"].NowPlaying) pa["AKPA.止める"].Update();
+                bool updated = false;
+                string[] names = {
+                    "KUPA.挿入.0", "KUPA.挿入.1", "KUPA.止める", 
+                    "AKPA.挿入.0", "AKPA.挿入.1", "AKPA.止める",
+                };
+                foreach (var name in names)
+                {
+                    if (pa[name].NowPlaying)
+                    {
+                        pa[name].Update();
+                        updated = true;
+                    }
+                }
+                if (bKupaAvailable && iKupaWaitingValue > 0)
+                {
+                    var current = slider["Kupa"].Value;
+                    if (!updated && current > 0)
+                    {
+                        fPassedTimeOnAutoKupaWaiting += Time.deltaTime;
+                        float f2rad = 180f * fPassedTimeOnAutoKupaWaiting * Mathf.Deg2Rad;
+                        float freq = bSyncMotionSpeed ? (slider["MotionSpeed"].Value / 100f) : 1f;
+                        float value = current + iKupaWaitingValue * (1f + Mathf.Sin(freq * f2rad)) / 2f;
+                        maid.body0.VertexMorph_FromProcItem("kupa", value / 100f);
+                    }
+                    else
+                    {
+                        fPassedTimeOnAutoKupaWaiting = 0;
+                    }
+                }
+                if (bAnalKupaAvailable && iAnalKupaWaitingValue > 0)
+                {
+                    var current = slider["AnalKupa"].Value;
+                    if (!updated && current > 0)
+                    {
+                        fPassedTimeOnAutoAnalKupaWaiting += Time.deltaTime;
+                        float f2rad = 180f * fPassedTimeOnAutoAnalKupaWaiting * Mathf.Deg2Rad;
+                        float freq = bSyncMotionSpeed ? (100f / slider["MotionSpeed"].Value) : 1f;
+                        float value = current + iAnalKupaWaitingValue * (1f + Mathf.Sin(freq * f2rad)) / 2f;
+                        maid.body0.VertexMorph_FromProcItem("analkupa", value / 100f);
+                    }
+                    else
+                    {
+                        fPassedTimeOnAutoAnalKupaWaiting = 0;
+                    }
+                }
             }
         }
 
