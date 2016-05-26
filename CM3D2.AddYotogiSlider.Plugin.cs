@@ -1267,8 +1267,16 @@ namespace CM3D2.AddYotogiSlider.Plugin
             iBoteCount         = 0;
 
             maid.SetProp("Hara", iDefHara, false);
-            if (bKupaAvailable) updateShapeKeyKupaValue(0f);
-            if (bAnalKupaAvailable) updateShapeKeyAnalKupaValue(0f);
+            if (panel["AutoKUPA"].Enabled)
+            {
+                if (bKupaAvailable) updateShapeKeyKupaValue(iKupaMin);
+                if (bAnalKupaAvailable) updateShapeKeyAnalKupaValue(iAnalKupaMin);
+            }
+            else
+            {
+                if (bKupaAvailable) updateShapeKeyKupaValue(0f);
+                if (bAnalKupaAvailable) updateShapeKeyAnalKupaValue(0f);
+            }
 
             foreach (KeyValuePair<string, PlayAnime> kvp in pa) if (kvp.Value.NowPlaying) kvp.Value.Stop();
             
