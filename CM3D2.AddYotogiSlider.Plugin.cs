@@ -110,9 +110,11 @@ namespace CM3D2.AddYotogiSlider.Plugin
         private int   iKupaNormalMax          = 0;           //通常時の局部開き最大値
         private int   iKupaMin
         {
-            get{ return (int)Mathf.Max(iKupaDef + iKupaIncrementPerOrgasm * iOrgasmCount, iKupaNormalMax); }
+            get{ return (int)Mathf.Min(iKupaDef + iKupaIncrementPerOrgasm * iOrgasmCount, iKupaNormalMax); }
         }
         private int[] iKupaValue              = { 100, 50 }; //最大の局部開き値
+        private int   iKupaWaitingValue       = 5;           //待機モーションでの局部開き値幅
+        private float fPassedTimeOnAutoKupaWaiting = 0;
 
         //AnalKUPA
         private bool  bAnalKupaAvailable          = false;   //BodyShapeKeyチェック
@@ -122,9 +124,11 @@ namespace CM3D2.AddYotogiSlider.Plugin
         private int   iAnalKupaNormalMax          = 0;       //通常時のアナル開き最大値
         private int   iAnalKupaMin
         {
-            get{ return (int)Mathf.Max(iAnalKupaDef + iAnalKupaIncrementPerOrgasm * iOrgasmCount, iAnalKupaNormalMax); }
+            get{ return (int)Mathf.Min(iAnalKupaDef + iAnalKupaIncrementPerOrgasm * iOrgasmCount, iAnalKupaNormalMax); }
         }
         private int[] iAnalKupaValue              = { 100, 50 }; //最大のアナル開き値
+        private int   iAnalKupaWaitingValue       = 5;           //待機モーションでのアナル開き値幅
+        private float fPassedTimeOnAutoAnalKupaWaiting = 0;
 
         //FaceNames
         private string[] sFaceNames = 
@@ -200,17 +204,22 @@ namespace CM3D2.AddYotogiSlider.Plugin
             private HeaderUI headerUI;
             private bool     childrenVisible = false;
 
+            private event EventHandler<ToggleEventArgs> OnEnableChanged;
+
             public string Title;
             public string HeaderUILabelText;
             public bool   Enabled        = false;
             public bool   HeaderUIToggle = false;
 
             public YotogiPanel(string name, string title) : this(name, title, HeaderUI.None) {}
-            public YotogiPanel(string name, string title, HeaderUI type)
+            public YotogiPanel(string name, string title, HeaderUI type) : this(name, title, type, null) {}
+            public YotogiPanel(string name, string title, EventHandler<ToggleEventArgs> onEnableChanged) : this(name, title, HeaderUI.None, onEnableChanged) {}
+            public YotogiPanel(string name, string title, HeaderUI type, EventHandler<ToggleEventArgs> onEnableChanged)
             : base(name, new Rect (Window.AutoLayout, Window.AutoLayout, Window.AutoLayout, 0))
             {
                 this.Title    = title;
                 this.headerUI = type;
+                this.OnEnableChanged += onEnableChanged;
                 Resize();
             }
 
@@ -238,7 +247,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
                     toggleStyle.alignment        = TextAnchor.MiddleLeft;
                     toggleStyle.normal.textColor = toggleColor(Enabled);
                     toggleStyle.hover.textColor  = toggleColor(Enabled);
-                    Enabled = GUI.Toggle(cur, Enabled, toggleText(Enabled), toggleStyle);
+                    onEnableChange(GUI.Toggle(cur, Enabled, toggleText(Enabled), toggleStyle));
                     cur.y += PV.PropPx(2);
                     cur.x += cur.width;
 
@@ -302,6 +311,18 @@ namespace CM3D2.AddYotogiSlider.Plugin
                 {
                     foreach(Element child in children)  child.Visible = b;
                     childrenVisible = b;
+                }
+            }
+
+            private void onEnableChange(bool newValue)
+            {
+                if (this.Enabled != newValue)
+                {
+                    this.Enabled = newValue;
+                    if (this.OnEnableChanged != null)
+                    {
+                        OnEnableChanged(this, new ToggleEventArgs(this.Title, newValue));
+                    }
                 }
             }
 
@@ -378,7 +399,10 @@ namespace CM3D2.AddYotogiSlider.Plugin
             private string   lineHeightPV = "C1";
             private string   fontSizePV   = "C1";
 
-            public bool Value { get{ return toggle.Value; } }
+            public bool Value {
+                get { return toggle.Value; }
+                set { toggle.Value = value; }
+            }
             public string LabelText;
 
             public YotogiToggle(string name, bool def, string text, EventHandler<ToggleEventArgs> onChange)
@@ -1015,7 +1039,26 @@ namespace CM3D2.AddYotogiSlider.Plugin
 
         public void OnChangeToggleConvulsion(object tgl, ToggleEventArgs args)
         {
-            ;
+            setExIni("AutoAHE", "ConvulsionEnabled", args.Value);
+            SaveConfig();
+        }
+
+        public void OnChangeEnabledAutoAHE(object panel, ToggleEventArgs args)
+        {
+            setExIni("AutoAHE", "Enabled", args.Value);
+            SaveConfig();
+        }
+
+        public void OnChangeEnabledAutoBOTE(object panel, ToggleEventArgs args)
+        {
+            setExIni("AutoBOTE", "Enabled", args.Value);
+            SaveConfig();
+        }
+
+        public void OnChangeEnabledAutoKUPA(object panel, ToggleEventArgs args)
+        {
+            setExIni("AutoKUPA", "Enabled", args.Value);
+            SaveConfig();
         }
 
         public void OnClickButtonFaceAnime(object ygb, ButtonEventArgs args)
@@ -1189,7 +1232,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
                 panel["Status"].AddChild(slider["MotionSpeed"]);
                 window.AddHorizontalSpacer();
 
-                panel["AutoAHE"] = window.AddChild<YotogiPanel>( new YotogiPanel("Panel:AutoAHE", "AutoAHE") );
+                panel["AutoAHE"] = window.AddChild<YotogiPanel>( new YotogiPanel("Panel:AutoAHE", "AutoAHE", OnChangeEnabledAutoAHE) );
                 if (bOrgasmAvailable)
                 {
                     panel["AutoAHE"].AddChild(toggle["Convulsion"]);
@@ -1197,11 +1240,11 @@ namespace CM3D2.AddYotogiSlider.Plugin
                 panel["AutoAHE"].AddChild(slider["EyeY"]);
                 window.AddHorizontalSpacer();
 
-                panel["AutoBOTE"] = window.AddChild<YotogiPanel>( new YotogiPanel("Panel:AutoBOTE", "AutoBOTE") );
+                panel["AutoBOTE"] = window.AddChild<YotogiPanel>( new YotogiPanel("Panel:AutoBOTE", "AutoBOTE", OnChangeEnabledAutoBOTE) );
                 panel["AutoBOTE"].AddChild(slider["Hara"]);
                 window.AddHorizontalSpacer();
 
-                panel["AutoKUPA"] = new YotogiPanel("Panel:AutoKUPA", "AutoKUPA");
+                panel["AutoKUPA"] = new YotogiPanel("Panel:AutoKUPA", "AutoKUPA", OnChangeEnabledAutoKUPA);
                 if (bKupaAvailable || bAnalKupaAvailable)
                 {
                     panel["AutoKUPA"] = window.AddChild(panel["AutoKUPA"]);
@@ -1223,6 +1266,8 @@ namespace CM3D2.AddYotogiSlider.Plugin
             {
                 ReloadConfig();
 
+                panel["AutoAHE"].Enabled = parseExIni("AutoAHE", "Enabed", panel["AutoAHE"].Enabled);
+                toggle["Convulsion"].Value = parseExIni("AutoAHE", "ConvulsionEnabled", toggle["Convulsion"].Value);
                 fOrgasmsPerAheLevel = parseExIni("AutoAHE", "OrgasmsPerLevel", fOrgasmsPerAheLevel);
                 fAheEyeDecrement    = parseExIni("AutoAHE", "EyeDecrement", fAheEyeDecrement);
                 for (int i = 0; i<3; i++) 
@@ -1237,11 +1282,14 @@ namespace CM3D2.AddYotogiSlider.Plugin
                     sAheOrgasmFaceBlend[i]  = parseExIniRaw("AutoAHE", "OrgasmFaceBlend_"+ i, sAheOrgasmFaceBlend[i]);
                 }
 
+                panel["AutoBOTE"].Enabled = parseExIni("AutoBOTE", "Enabed", panel["AutoBOTE"].Enabled);
                 iHaraIncrement = (int)parseExIni("AutoBOTE", "Increment", iHaraIncrement);
                 iBoteHaraMax   = (int)parseExIni("AutoBOTE", "Max",       iBoteHaraMax);
 
+                panel["AutoKUPA"].Enabled = parseExIni("AutoKUPA", "Enabed", panel["AutoKUPA"].Enabled);
                 iKupaIncrementPerOrgasm = (int)parseExIni("AutoKUPA", "IncrementPerOrgasm", iKupaIncrementPerOrgasm);
                 iKupaNormalMax          = (int)parseExIni("AutoKUPA", "NormalMax", iKupaNormalMax);
+                iKupaWaitingValue       = (int)parseExIni("AutoKUPA", "WaitingValue", iKupaWaitingValue);
                 for (int i = 0; i<2; i++) 
                 {
                     iKupaValue[i] = (int)parseExIni("AutoKUPA", "Value_"+ i, iKupaValue[i]);
@@ -1249,6 +1297,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
 
                 iAnalKupaIncrementPerOrgasm = (int)parseExIni("AutoKUPA_Anal", "IncrementPerOrgasm", iAnalKupaIncrementPerOrgasm);
                 iAnalKupaNormalMax          = (int)parseExIni("AutoKUPA_Anal", "NormalMax", iAnalKupaNormalMax);
+                iAnalKupaWaitingValue       = (int)parseExIni("AutoKUPA_Anal", "WaitingValue", iAnalKupaWaitingValue);
                 for (int i = 0; i<2; i++) 
                 {
                     iAnalKupaValue[i] = (int)parseExIni("AutoKUPA", "Value_"+ i, iAnalKupaValue[i]);
@@ -1267,8 +1316,16 @@ namespace CM3D2.AddYotogiSlider.Plugin
             iBoteCount         = 0;
 
             maid.SetProp("Hara", iDefHara, false);
-            if (bKupaAvailable) updateShapeKeyKupaValue(0f);
-            if (bAnalKupaAvailable) updateShapeKeyAnalKupaValue(0f);
+            if (panel["AutoKUPA"].Enabled)
+            {
+                if (bKupaAvailable) updateShapeKeyKupaValue(iKupaMin);
+                if (bAnalKupaAvailable) updateShapeKeyAnalKupaValue(iAnalKupaMin);
+            }
+            else
+            {
+                if (bKupaAvailable) updateShapeKeyKupaValue(0f);
+                if (bAnalKupaAvailable) updateShapeKeyAnalKupaValue(0f);
+            }
 
             foreach (KeyValuePair<string, PlayAnime> kvp in pa) if (kvp.Value.NowPlaying) kvp.Value.Stop();
             
@@ -1618,12 +1675,51 @@ namespace CM3D2.AddYotogiSlider.Plugin
             
             if (panel["AutoKUPA"].Enabled) 
             {
-                if (pa["KUPA.挿入.0"].NowPlaying) pa["KUPA.挿入.0"].Update();
-                if (pa["KUPA.挿入.1"].NowPlaying) pa["KUPA.挿入.1"].Update();
-                if (pa["KUPA.止める"].NowPlaying) pa["KUPA.止める"].Update();
-                if (pa["AKPA.挿入.0"].NowPlaying) pa["AKPA.挿入.0"].Update();
-                if (pa["AKPA.挿入.1"].NowPlaying) pa["AKPA.挿入.1"].Update();
-                if (pa["AKPA.止める"].NowPlaying) pa["AKPA.止める"].Update();
+                bool updated = false;
+                string[] names = {
+                    "KUPA.挿入.0", "KUPA.挿入.1", "KUPA.止める", 
+                    "AKPA.挿入.0", "AKPA.挿入.1", "AKPA.止める",
+                };
+                foreach (var name in names)
+                {
+                    if (pa[name].NowPlaying)
+                    {
+                        pa[name].Update();
+                        updated = true;
+                    }
+                }
+                if (bKupaAvailable && iKupaWaitingValue > 0)
+                {
+                    var current = slider["Kupa"].Value;
+                    if (!updated && current > 0)
+                    {
+                        fPassedTimeOnAutoKupaWaiting += Time.deltaTime;
+                        float f2rad = 180f * fPassedTimeOnAutoKupaWaiting * Mathf.Deg2Rad;
+                        float freq = bSyncMotionSpeed ? (slider["MotionSpeed"].Value / 100f) : 1f;
+                        float value = current + iKupaWaitingValue * (1f + Mathf.Sin(freq * f2rad)) / 2f;
+                        maid.body0.VertexMorph_FromProcItem("kupa", value / 100f);
+                    }
+                    else
+                    {
+                        fPassedTimeOnAutoKupaWaiting = 0;
+                    }
+                }
+                if (bAnalKupaAvailable && iAnalKupaWaitingValue > 0)
+                {
+                    var current = slider["AnalKupa"].Value;
+                    if (!updated && current > 0)
+                    {
+                        fPassedTimeOnAutoAnalKupaWaiting += Time.deltaTime;
+                        float f2rad = 180f * fPassedTimeOnAutoAnalKupaWaiting * Mathf.Deg2Rad;
+                        float freq = bSyncMotionSpeed ? (100f / slider["MotionSpeed"].Value) : 1f;
+                        float value = current + iAnalKupaWaitingValue * (1f + Mathf.Sin(freq * f2rad)) / 2f;
+                        maid.body0.VertexMorph_FromProcItem("analkupa", value / 100f);
+                    }
+                    else
+                    {
+                        fPassedTimeOnAutoAnalKupaWaiting = 0;
+                    }
+                }
             }
         }
 
@@ -1809,48 +1905,46 @@ namespace CM3D2.AddYotogiSlider.Plugin
         {
             if (!s.Contains("アナル")) 
             {
-                if (s.Contains("セックス") || s.Contains("太バイブ")) return 0;
+                string[] t0 = { "セックス", "太バイブ", "正常位", "後背位", "騎乗位" };
+                if (t0.Any(t => s.Contains(t))) return 0;
 
-                if (s.Contains("愛撫") || s.Contains("オナニー") || s.Contains("バイブ")) return 1;
-
-                if (s == "詰られ騎乗位") return 0;
+                string[] t1 = { "愛撫", "オナニー", "バイブ", "シックスナイン", "ポーズ維持プレイ" };
+                if (t1.Any(t => s.Contains(t))) return 1;
             }
-
-            if (s == "バイブ責めアナルセックス正常位") return 1;
-            if (s == "アナルバイブ責めセックス後背位") return 0;
-            
+            else
+            {
+                if (s.Contains("バイブ責めアナルセックス")) return 1;
+                if (s.Contains("アナルバイブ責めセックス")) return 0;
+            }
             return -1;
         }
 
         private int checkGroupAnalKupa(string s)
         {
-            if (s == "アナルバイブ責めセックス後背位") return 1;
+            string[] t0 = { "アナルセックス", "アナル正常位", "アナル後背位", "アナル騎乗位", "2穴", "4P", "アナル処女喪失" };
+            if (t0.Any(t => s.Contains(t))) return 0;
 
-            if (s.Contains("アナル") || s.Contains("2穴"))
-            {
-                if (s.Contains("セックス")) return 0;
-                if (s.Contains("愛撫") || s.Contains("オナニー") || s.Contains("バイブ")) return 1;
-            }
+            string[] t1 = { "アナルバイブ", "アナルオナニー" };
+            if (t1.Any(t => s.Contains(t))) return 1;
 
             return -1;
         }
 
-        private float parseExIni(string section, string key, float def)
+        private T parseExIni<T>(string section, string key, T def)
         {
-            float x;
-            if (Preferences.HasSection(section))
+            string str = parseExIniRaw(section, key, null);
+            if (str != null)
             {
-                if (Preferences[section].HasKey(key))
+                var converter = System.ComponentModel.TypeDescriptor.GetConverter(typeof(T));
+                if (converter != null)
                 {
-                    if (Single.TryParse(Preferences[section][key].Value, out x))
+                    try
                     {
-                        //Debug.Log(section + ":"+ key + ":"+ x);
-                        return x;
+                        return (T)converter.ConvertFromString(str);
                     }
+                    catch (NotSupportedException) { /* nothing */ }
                 }
             }
-            
-            //Debug.Log(section + ":"+ key + ":default");
             return def;
         }
 
@@ -1868,6 +1962,19 @@ namespace CM3D2.AddYotogiSlider.Plugin
             
             //Debug.Log(section + ":"+ key + ":default");
             return def;
+        }
+
+        private void setExIni<T>(string section, string key, T value)
+        {
+            var converter = System.ComponentModel.TypeDescriptor.GetConverter(typeof(T));
+            if (converter != null)
+            {
+                try
+                {
+                    Preferences[section][key].Value = converter.ConvertToString(value);
+                }
+                catch (NotSupportedException) { /* nothing */ }
+            }
         }
 
 
@@ -2393,7 +2500,7 @@ namespace UnityObsoleteGui
 
         public GUIStyle Style = "toggle";
         public GUIContent Content;
-        public bool   Value  { get{ return val; } }
+        public bool   Value  { get{ return val; } set { val = value; } }
         public string Text   { get{ return Content.text; }  set{ Content.text = value; } }
 
         public event EventHandler<ToggleEventArgs> OnChange;

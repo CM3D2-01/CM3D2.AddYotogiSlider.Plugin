@@ -7,6 +7,7 @@ Based on: CM3D2.AddYotogiSlider Ver.0.0.4.7
 [CM3D2.AddYotogiSlider.Plugin]: https://github.com/CM3D2-01/CM3D2.AddYotogiSlider.Plugin
 
 
+
 ## 内容物
 
 * README-analkupa.txt
@@ -24,6 +25,7 @@ Based on: CM3D2.AddYotogiSlider Ver.0.0.4.7
   改変版の設定ファイル。
 
 
+
 ## 導入方法
 
 UnityInjector フォルダの内容をオリジナルと同様に導入してください。
@@ -34,6 +36,7 @@ UnityInjector フォルダの内容をオリジナルと同様に導入してく
 
 ## オリジナルとの差異
 
+### 0.0.4.7 + v20151203
 * AutoKUPA 'Enabled' 時、対応 body の 'analkupa' シェイプキーを自動操作。
 
 * AutoKUPA パネルにスライダーを追加。
@@ -42,6 +45,20 @@ UnityInjector フォルダの内容をオリジナルと同様に導入してく
 
 * AddYotogiSlider.ini ファイルに `[AutoKUPA_Anal]` 項目を追加。
   詳細はファイル内のコメントを参照してください。
+
+### 0.0.4.7 + v20151207
+* AutoKUPA に待機モーションを追加。
+  ini ファイルの `[AutoKUPA] WaitingValue` で開き値幅を設定。
+
+* Toggle 値を保存。
+  (AutoAHE, AutoBOTE, AutoKUPA, OrgasmConvulsion のみ)
+
+* スキル判定を修正。
+  ("シックスナイン", "ポーズ維持プレイ", "4P", "～ Chu-B" などに対応)
+
+* `[AutoKUPA] IncrementPerOrgasm` のバグを修正。
+  * 常に `NormalMax` に固定されていた。
+  * 次のスキル開始時に、コマンドを選択するまで適用されていなかった。
 
 
 
