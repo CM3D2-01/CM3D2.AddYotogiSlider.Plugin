@@ -53,7 +53,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
         private bool  kagScriptCallbacksOverride = false;
 
         private string[] sKey =  { "WIN", "STATUS", "AHE", "BOTE", "FACEBLEND", "FACEANIME"};
-        private string[] sliderName = {"興奮", "精神", "理性", "感度", "速度", "瞳Y", "腹", "値"};
+        private string[] sliderName = {"興奮", "精神", "理性", "感度", "速度", "瞳Y", "腹", "前", "後"};
         private List<string> sStageNames = new List<string>();
         private Dictionary<string, PlayAnime> pa = new Dictionary<string, PlayAnime>();
 
@@ -113,6 +113,18 @@ namespace CM3D2.AddYotogiSlider.Plugin
             get{ return (int)Mathf.Max(iKupaDef + iKupaIncrementPerOrgasm * iOrgasmCount, iKupaNormalMax); }
         }
         private int[] iKupaValue              = { 100, 50 }; //最大の局部開き値
+
+        //AnalKUPA
+        private bool  bAnalKupaAvailable          = false;   //BodyShapeKeyチェック
+        private bool  bAnalKupaFuck               = false;   //挿入しているかどうか
+        private int   iAnalKupaDef                = 0;
+        private int   iAnalKupaIncrementPerOrgasm = 0;       //絶頂回数当たりの通常時アナル開き値の増加値
+        private int   iAnalKupaNormalMax          = 0;       //通常時のアナル開き最大値
+        private int   iAnalKupaMin
+        {
+            get{ return (int)Mathf.Max(iAnalKupaDef + iAnalKupaIncrementPerOrgasm * iOrgasmCount, iAnalKupaNormalMax); }
+        }
+        private int[] iAnalKupaValue              = { 100, 50 }; //最大のアナル開き値
 
         //FaceNames
         private string[] sFaceNames = 
@@ -809,6 +821,9 @@ namespace CM3D2.AddYotogiSlider.Plugin
             pa["KUPA.挿入.0"] = new PlayAnime("KUPA.挿入.0", 1, 0.50f,  1.50f);
             pa["KUPA.挿入.1"] = new PlayAnime("KUPA.挿入.1", 1, 1.50f,  2.50f);
             pa["KUPA.止める"] = new PlayAnime("KUPA.止める", 1, 0.00f,  2.00f);
+            pa["AKPA.挿入.0"] = new PlayAnime("AKPA.挿入.0", 1, 0.50f,  1.50f);
+            pa["AKPA.挿入.1"] = new PlayAnime("AKPA.挿入.1", 1, 1.50f,  2.50f);
+            pa["AKPA.止める"] = new PlayAnime("AKPA.止める", 1, 0.00f,  2.00f);
         }
         
 
@@ -988,6 +1003,11 @@ namespace CM3D2.AddYotogiSlider.Plugin
             updateShapeKeyKupaValue(args.Value);
         }
 
+        public void OnChangeSliderAnalKupa(object ys, SliderEventArgs args)
+        {
+            updateShapeKeyAnalKupaValue(args.Value);
+        }
+
         public void OnChangeToggleLipsync(object tgl, ToggleEventArgs args)
         {
             updateMaidFoceKuchipakuSelfUpdateTime(args.Value);
@@ -1101,6 +1121,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
                         if (p.Contains("WIN"))  p.SetSetter(updateWindowAnime);
                         if (p.Contains("BOTE")) p.SetSetter(updateMaidHaraValue);
                         if (p.Contains("KUPA")) p.SetSetter(updateShapeKeyKupaValue);
+                        if (p.Contains("AKPA")) p.SetSetter(updateShapeKeyAnalKupaValue);
                         if (p.Contains("AHE")) p.SetSetter(updateOrgasmConvulsion);
                         
                         if (p.Contains("AHE.継続")) p.SetSetter(updateMaidEyePosY);
@@ -1118,6 +1139,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
             // BodyShapeKeyCheck
             bKupaAvailable   = maid.body0.goSlot[0].morph.hash.ContainsKey("kupa");
             bOrgasmAvailable = maid.body0.goSlot[0].morph.hash.ContainsKey("orgasm");
+            bAnalKupaAvailable = maid.body0.goSlot[0].morph.hash.ContainsKey("analkupa");
 
             // Window
             {
@@ -1136,6 +1158,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
                 slider["EyeY"]        = new YotogiSlider("Slider:EyeY",         0f,    100f,   fAheDefEye,      this.OnChangeSliderEyeY,        sliderName[5], false);
                 slider["Hara"]        = new YotogiSlider("Slider:Hara",         0f,    150f,   (float)iDefHara, this.OnChangeSliderHara,        sliderName[6], false);
                 slider["Kupa"]        = new YotogiSlider("Slider:Kupa",         0f,    150f,   0f,              this.OnChangeSliderKupa,        sliderName[7], false);
+                slider["AnalKupa"]    = new YotogiSlider("Slider:AnalKupa",     0f,    150f,   0f,              this.OnChangeSliderAnalKupa,    sliderName[8], false);
 
                 toggle["Lipsync"]     = new YotogiToggle("Toggle:Lipsync",      false, " Lipsync cancelling", this.OnChangeToggleLipsync);
                 toggle["Convulsion"]  = new YotogiToggle("Toggle:Convulsion",   false, " Orgasm convulsion",  this.OnChangeToggleConvulsion);
@@ -1148,6 +1171,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
                 slider["EyeY"].Visible       = false;
                 slider["Hara"].Visible       = false;
                 slider["Kupa"].Visible       = false;
+                slider["AnalKupa"].Visible   = false;
                 toggle["Convulsion"].Visible = false;
                 toggle["Lipsync"].Visible    = false;
                 grid["FaceAnime"].Visible    = false;
@@ -1178,10 +1202,11 @@ namespace CM3D2.AddYotogiSlider.Plugin
                 window.AddHorizontalSpacer();
 
                 panel["AutoKUPA"] = new YotogiPanel("Panel:AutoKUPA", "AutoKUPA");
-                if (bKupaAvailable)
+                if (bKupaAvailable || bAnalKupaAvailable)
                 {
                     panel["AutoKUPA"] = window.AddChild(panel["AutoKUPA"]);
-                    panel["AutoKUPA"].AddChild(slider["Kupa"]);
+                    if (bKupaAvailable) panel["AutoKUPA"].AddChild(slider["Kupa"]);
+                    if (bAnalKupaAvailable) panel["AutoKUPA"].AddChild(slider["AnalKupa"]);
                     window.AddHorizontalSpacer();
                 }
 
@@ -1221,6 +1246,13 @@ namespace CM3D2.AddYotogiSlider.Plugin
                 {
                     iKupaValue[i] = (int)parseExIni("AutoKUPA", "Value_"+ i, iKupaValue[i]);
                 }
+
+                iAnalKupaIncrementPerOrgasm = (int)parseExIni("AutoKUPA_Anal", "IncrementPerOrgasm", iAnalKupaIncrementPerOrgasm);
+                iAnalKupaNormalMax          = (int)parseExIni("AutoKUPA_Anal", "NormalMax", iAnalKupaNormalMax);
+                for (int i = 0; i<2; i++) 
+                {
+                    iAnalKupaValue[i] = (int)parseExIni("AutoKUPA", "Value_"+ i, iAnalKupaValue[i]);
+                }
             }
 
             return true;
@@ -1231,10 +1263,12 @@ namespace CM3D2.AddYotogiSlider.Plugin
             bLoadBoneAnimetion = false;
             bSyncMotionSpeed   = true;
             bKupaFuck          = false;
+            bAnalKupaFuck      = false;
             iBoteCount         = 0;
 
             maid.SetProp("Hara", iDefHara, false);
             if (bKupaAvailable) updateShapeKeyKupaValue(0f);
+            if (bAnalKupaAvailable) updateShapeKeyAnalKupaValue(0f);
 
             foreach (KeyValuePair<string, PlayAnime> kvp in pa) if (kvp.Value.NowPlaying) kvp.Value.Stop();
             
@@ -1275,6 +1309,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
             iBoteCount = 0;
             
             bKupaFuck = false;
+            bAnalKupaFuck = false;
 
             goCommandUnit                   = null;
             maid                            = null;
@@ -1371,6 +1406,12 @@ namespace CM3D2.AddYotogiSlider.Plugin
                     if (pa["KUPA.挿入."+ i].NowPlaying) updateShapeKeyKupaValue(iKupaValue[i]);
                     pa["KUPA.挿入."+ i].Stop();
                 }
+
+                for (int i=0; i<2; i++)
+                {
+                    if (pa["AKPA.挿入."+ i].NowPlaying) updateShapeKeyAnalKupaValue(iAnalKupaValue[i]);
+                    pa["AKPA.挿入."+ i].Stop();
+                }
             }
 
             if (panel["AutoBOTE"].Enabled) 
@@ -1392,8 +1433,10 @@ namespace CM3D2.AddYotogiSlider.Plugin
             if (panel["AutoKUPA"].Enabled) 
             {
                 if (pa["KUPA.止める"].NowPlaying) updateShapeKeyKupaValue(iKupaMin);
-                
                 pa["KUPA.止める"].Stop();
+
+                if (pa["AKPA.止める"].NowPlaying) updateShapeKeyAnalKupaValue(iAnalKupaMin);
+                pa["AKPA.止める"].Stop();
             }
 
         }
@@ -1493,6 +1536,35 @@ namespace CM3D2.AddYotogiSlider.Plugin
                         bKupaFuck = false;
                     }
                 }
+
+                if (data.command_type == Yotogi.SkillCommandType.挿入 && !data.name.Contains("口を責める"))
+                {
+                    if (!bAnalKupaFuck)
+                    {
+                        int i = checkGroupAnalKupa(data.group_name);
+                        if (i >= 0) 
+                        {
+                            //Debug.Log(iAnalKupaDef +":"+ iAnalKupaIncrementPerOrgasm  +":"+ iOrgasmCount +"="+ iAnalKupaMin);
+                            pa["AKPA.挿入."+ i].Play(iAnalKupaMin, iAnalKupaValue[i]);
+                            bAnalKupaFuck = true;
+                        }
+                    }
+                }
+                else if (data.command_type == Yotogi.SkillCommandType.止める || data.name.Contains("口を責める"))
+                {
+                    //Debug.Log(iAnalKupaDef +":"+ iAnalKupaIncrementPerOrgasm  +":"+ iOrgasmCount +"="+ iAnalKupaMin);
+                    pa["AKPA.止める"].Play(slider["AnalKupa"].Value, iAnalKupaMin);
+                    bAnalKupaFuck = false;
+                }
+                else if (data.command_type == Yotogi.SkillCommandType.絶頂)
+                {
+                    if (data.group_name.Contains("愛撫") || data.name.Contains("外出し"))
+                    {
+                        //Debug.Log(iAnalKupaDef +":"+ iAnalKupaIncrementPerOrgasm  +":"+ iOrgasmCount +"="+ iAnalKupaMin);
+                        pa["AKPA.止める"].Play(slider["AnalKupa"].Value, iAnalKupaMin);
+                        bAnalKupaFuck = false;
+                    }
+                }
             }
         }
 
@@ -1549,6 +1621,9 @@ namespace CM3D2.AddYotogiSlider.Plugin
                 if (pa["KUPA.挿入.0"].NowPlaying) pa["KUPA.挿入.0"].Update();
                 if (pa["KUPA.挿入.1"].NowPlaying) pa["KUPA.挿入.1"].Update();
                 if (pa["KUPA.止める"].NowPlaying) pa["KUPA.止める"].Update();
+                if (pa["AKPA.挿入.0"].NowPlaying) pa["AKPA.挿入.0"].Update();
+                if (pa["AKPA.挿入.1"].NowPlaying) pa["AKPA.挿入.1"].Update();
+                if (pa["AKPA.止める"].NowPlaying) pa["AKPA.止める"].Update();
             }
         }
 
@@ -1640,6 +1715,15 @@ namespace CM3D2.AddYotogiSlider.Plugin
             } catch { /*Debug.LogError(LogLabel + ex);*/ }
             
             updateSlider("Slider:Kupa", value);
+        }
+
+        private void updateShapeKeyAnalKupaValue(float value)
+        {
+            try {
+            maid.body0.VertexMorph_FromProcItem("analkupa", value/100f);
+            } catch { /*Debug.LogError(LogLabel + ex);*/ }
+
+            updateSlider("Slider:AnalKupa", value);
         }
 
         private void updateShapeKeyOrgasmValue(float value)
@@ -1737,7 +1821,20 @@ namespace CM3D2.AddYotogiSlider.Plugin
             
             return -1;
         }
-        
+
+        private int checkGroupAnalKupa(string s)
+        {
+            if (s == "アナルバイブ責めセックス後背位") return 1;
+
+            if (s.Contains("アナル") || s.Contains("2穴"))
+            {
+                if (s.Contains("セックス")) return 0;
+                if (s.Contains("愛撫") || s.Contains("オナニー") || s.Contains("バイブ")) return 1;
+            }
+
+            return -1;
+        }
+
         private float parseExIni(string section, string key, float def)
         {
             float x;
