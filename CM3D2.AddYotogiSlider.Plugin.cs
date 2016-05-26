@@ -1809,28 +1809,27 @@ namespace CM3D2.AddYotogiSlider.Plugin
         {
             if (!s.Contains("アナル")) 
             {
-                if (s.Contains("セックス") || s.Contains("太バイブ")) return 0;
+                string[] t0 = { "セックス", "太バイブ", "正常位", "後背位", "騎乗位" };
+                if (t0.Any(t => s.Contains(t))) return 0;
 
-                if (s.Contains("愛撫") || s.Contains("オナニー") || s.Contains("バイブ")) return 1;
-
-                if (s == "詰られ騎乗位") return 0;
+                string[] t1 = { "愛撫", "オナニー", "バイブ", "シックスナイン", "ポーズ維持プレイ" };
+                if (t1.Any(t => s.Contains(t))) return 1;
             }
-
-            if (s == "バイブ責めアナルセックス正常位") return 1;
-            if (s == "アナルバイブ責めセックス後背位") return 0;
-            
+            else
+            {
+                if (s.Contains("バイブ責めアナルセックス")) return 1;
+                if (s.Contains("アナルバイブ責めセックス")) return 0;
+            }
             return -1;
         }
 
         private int checkGroupAnalKupa(string s)
         {
-            if (s == "アナルバイブ責めセックス後背位") return 1;
+            string[] t0 = { "アナルセックス", "アナル正常位", "アナル後背位", "アナル騎乗位", "2穴", "4P", "アナル処女喪失" };
+            if (t0.Any(t => s.Contains(t))) return 0;
 
-            if (s.Contains("アナル") || s.Contains("2穴"))
-            {
-                if (s.Contains("セックス")) return 0;
-                if (s.Contains("愛撫") || s.Contains("オナニー") || s.Contains("バイブ")) return 1;
-            }
+            string[] t1 = { "アナルバイブ", "アナルオナニー" };
+            if (t1.Any(t => s.Contains(t))) return 1;
 
             return -1;
         }
