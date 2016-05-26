@@ -110,7 +110,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
         private int   iKupaNormalMax          = 0;           //通常時の局部開き最大値
         private int   iKupaMin
         {
-            get{ return (int)Mathf.Max(iKupaDef + iKupaIncrementPerOrgasm * iOrgasmCount, iKupaNormalMax); }
+            get{ return (int)Mathf.Min(iKupaDef + iKupaIncrementPerOrgasm * iOrgasmCount, iKupaNormalMax); }
         }
         private int[] iKupaValue              = { 100, 50 }; //最大の局部開き値
 
@@ -122,7 +122,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
         private int   iAnalKupaNormalMax          = 0;       //通常時のアナル開き最大値
         private int   iAnalKupaMin
         {
-            get{ return (int)Mathf.Max(iAnalKupaDef + iAnalKupaIncrementPerOrgasm * iOrgasmCount, iAnalKupaNormalMax); }
+            get{ return (int)Mathf.Min(iAnalKupaDef + iAnalKupaIncrementPerOrgasm * iOrgasmCount, iAnalKupaNormalMax); }
         }
         private int[] iAnalKupaValue              = { 100, 50 }; //最大のアナル開き値
 
