@@ -1,4 +1,4 @@
-##CM3D2.AddYotogiSlider.Plugin 
+﻿##CM3D2.AddYotogiSlider.Plugin (ANALKUPA 拡張 Ver.)
 
 夜伽コマンド画面中にF5でGUI表示トグル。  
 夜伽中のメイドのステータス・表情等ををスライダー・ボタンで変更する事が可能。  
@@ -13,9 +13,55 @@
 [![ダウンロードボタン][img_download]][master zip]を押してzipファイルをダウンロード。  
 zipファイルの中にあるUnityInjectorフォルダをCM3D2フォルダにD&Dすれば導入完了。  
 
+ANALKUPA 機能を使うには **'analkupa' 対応 body が必要です。**
+対応 body がなくてもそれ以外の機能は動作します。
 
 
 ##更新履歴
+
+### 0.0.4.7 + v20151214
+* `[AutoKUPA_Anal] Value_*` の読み込みを修正。
+  (`[AutoKUPA]` を参照していた。)
+
+### 0.0.4.7 + v20151212
+* GUIオープンキー(F5)を ini で指定可能に。
+
+* Toggle 値保存の修正。
+
+* AutoKUPA で、夜伽開始時の初期値を指定可能に。
+
+* スキル判定・閉じる判定を修正。
+
+* AutoKUPA アニメーションの開始点を現在値からとする。
+
+* 夜伽スキル開始時に KUPA 状態を適用。(バイブ装着スキル等)
+
+* 夜伽スキル開始時に orgasm シェイプをリセット。
+  (orgasm アニメーション中に次スキル開始するとずれたままになっていた。)
+
+### 0.0.4.7 + v20151207
+* AutoKUPA に待機モーションを追加。
+  ini ファイルの `[AutoKUPA] WaitingValue` で開き値幅を設定。
+
+* Toggle 値を保存。
+  (AutoAHE, AutoBOTE, AutoKUPA, OrgasmConvulsion のみ)
+
+* スキル判定を修正。
+  ("シックスナイン", "ポーズ維持プレイ", "4P", "～ Chu-B" などに対応)
+
+* `[AutoKUPA] IncrementPerOrgasm` のバグを修正。
+  * 常に `NormalMax` に固定されていた。
+  * 次のスキル開始時に、コマンドを選択するまで適用されていなかった。
+
+### 0.0.4.7 + v20151203
+* AutoKUPA 'Enabled' 時、対応 body の 'analkupa' シェイプキーを自動操作。
+
+* AutoKUPA パネルにスライダーを追加。
+ * "前" スライダー  :  KUPA 値を操作します。 *オリジナルでは "値" スライダー。*
+ * "後" スライダー  :  ANALKUPA 値を操作します。 **非対応 body の場合表示されません。**
+
+* AddYotogiSlider.ini ファイルに `[AutoKUPA_Anal]` 項目を追加。
+  詳細はファイル内のコメントを参照してください。
 
 ###0.0.4.7
 * AutoAHE/BOTE/KUPAの各種数値をiniファイルで設定可能に変更。(./Config/AddYotogiSlider.ini)
@@ -81,9 +127,18 @@ zipファイルの中にあるUnityInjectorフォルダをCM3D2フォルダにD&
 転載・再配布・改変・改変物配布等はKISSに迷惑のかからぬ様、  
 各自の判断・責任の下で行って下さい。  
 
+改変版は複数の開発者のバトンリレーで製作されたものです。
+改変版について、オリジナルの作者さまに問い合わせ等を行わないでください。
+改変版のソース差分の利用は自由です。
 
+Based on: CM3D2.AddYotogiSlider Ver.0.0.4.7
+[CM3D2.AddYotogiSlider.Plugin]: https://github.com/CM3D2-01/CM3D2.AddYotogiSlider.Plugin
 
 [CM3D2.AddModsSlider.Plugin]: https://github.com/CM3D2-01/CM3D2.AddModsSlider.Plugin "CM3D2-01/CM3D2.AddModsSlider.Plugin"
 [master zip]:https://github.com/CM3D2-01/CM3D2.AddYotogiSlider.Plugin/archive/master.zip "master zip"
 [img_download]: http://i.imgur.com/byav3Uf.png "ダウンロードボタン"
 
+「MODはKISSサポート対象外です。」
+「MODを利用するに当たり、問題が発生しても製作者・KISSは一切の責任を負いかねます。」
+「カスタムメイド3D2を購入されている方のみが利用できます。」
+「カスタムメイド3D2上で表示する目的以外の利用は禁止します。」
