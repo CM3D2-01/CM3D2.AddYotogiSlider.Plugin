@@ -204,17 +204,22 @@ namespace CM3D2.AddYotogiSlider.Plugin
             private HeaderUI headerUI;
             private bool     childrenVisible = false;
 
+            private event EventHandler<ToggleEventArgs> OnEnableChanged;
+
             public string Title;
             public string HeaderUILabelText;
             public bool   Enabled        = false;
             public bool   HeaderUIToggle = false;
 
             public YotogiPanel(string name, string title) : this(name, title, HeaderUI.None) {}
-            public YotogiPanel(string name, string title, HeaderUI type)
+            public YotogiPanel(string name, string title, HeaderUI type) : this(name, title, type, null) {}
+            public YotogiPanel(string name, string title, EventHandler<ToggleEventArgs> onEnableChanged) : this(name, title, HeaderUI.None, onEnableChanged) {}
+            public YotogiPanel(string name, string title, HeaderUI type, EventHandler<ToggleEventArgs> onEnableChanged)
             : base(name, new Rect (Window.AutoLayout, Window.AutoLayout, Window.AutoLayout, 0))
             {
                 this.Title    = title;
                 this.headerUI = type;
+                this.OnEnableChanged += onEnableChanged;
                 Resize();
             }
 
@@ -242,7 +247,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
                     toggleStyle.alignment        = TextAnchor.MiddleLeft;
                     toggleStyle.normal.textColor = toggleColor(Enabled);
                     toggleStyle.hover.textColor  = toggleColor(Enabled);
-                    Enabled = GUI.Toggle(cur, Enabled, toggleText(Enabled), toggleStyle);
+                    onEnableChange(GUI.Toggle(cur, Enabled, toggleText(Enabled), toggleStyle));
                     cur.y += PV.PropPx(2);
                     cur.x += cur.width;
 
@@ -306,6 +311,18 @@ namespace CM3D2.AddYotogiSlider.Plugin
                 {
                     foreach(Element child in children)  child.Visible = b;
                     childrenVisible = b;
+                }
+            }
+
+            private void onEnableChange(bool newValue)
+            {
+                if (this.Enabled != newValue)
+                {
+                    this.Enabled = newValue;
+                    if (this.OnEnableChanged != null)
+                    {
+                        OnEnableChanged(this, new ToggleEventArgs(this.Title, newValue));
+                    }
                 }
             }
 
@@ -382,7 +399,10 @@ namespace CM3D2.AddYotogiSlider.Plugin
             private string   lineHeightPV = "C1";
             private string   fontSizePV   = "C1";
 
-            public bool Value { get{ return toggle.Value; } }
+            public bool Value {
+                get { return toggle.Value; }
+                set { toggle.Value = value; }
+            }
             public string LabelText;
 
             public YotogiToggle(string name, bool def, string text, EventHandler<ToggleEventArgs> onChange)
@@ -1019,7 +1039,26 @@ namespace CM3D2.AddYotogiSlider.Plugin
 
         public void OnChangeToggleConvulsion(object tgl, ToggleEventArgs args)
         {
-            ;
+            setExIni("AutoAHE", "ConvulsionEnabled", args.Value);
+            SaveConfig();
+        }
+
+        public void OnChangeEnabledAutoAHE(object panel, ToggleEventArgs args)
+        {
+            setExIni("AutoAHE", "Enabled", args.Value);
+            SaveConfig();
+        }
+
+        public void OnChangeEnabledAutoBOTE(object panel, ToggleEventArgs args)
+        {
+            setExIni("AutoBOTE", "Enabled", args.Value);
+            SaveConfig();
+        }
+
+        public void OnChangeEnabledAutoKUPA(object panel, ToggleEventArgs args)
+        {
+            setExIni("AutoKUPA", "Enabled", args.Value);
+            SaveConfig();
         }
 
         public void OnClickButtonFaceAnime(object ygb, ButtonEventArgs args)
@@ -1193,7 +1232,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
                 panel["Status"].AddChild(slider["MotionSpeed"]);
                 window.AddHorizontalSpacer();
 
-                panel["AutoAHE"] = window.AddChild<YotogiPanel>( new YotogiPanel("Panel:AutoAHE", "AutoAHE") );
+                panel["AutoAHE"] = window.AddChild<YotogiPanel>( new YotogiPanel("Panel:AutoAHE", "AutoAHE", OnChangeEnabledAutoAHE) );
                 if (bOrgasmAvailable)
                 {
                     panel["AutoAHE"].AddChild(toggle["Convulsion"]);
@@ -1201,11 +1240,11 @@ namespace CM3D2.AddYotogiSlider.Plugin
                 panel["AutoAHE"].AddChild(slider["EyeY"]);
                 window.AddHorizontalSpacer();
 
-                panel["AutoBOTE"] = window.AddChild<YotogiPanel>( new YotogiPanel("Panel:AutoBOTE", "AutoBOTE") );
+                panel["AutoBOTE"] = window.AddChild<YotogiPanel>( new YotogiPanel("Panel:AutoBOTE", "AutoBOTE", OnChangeEnabledAutoBOTE) );
                 panel["AutoBOTE"].AddChild(slider["Hara"]);
                 window.AddHorizontalSpacer();
 
-                panel["AutoKUPA"] = new YotogiPanel("Panel:AutoKUPA", "AutoKUPA");
+                panel["AutoKUPA"] = new YotogiPanel("Panel:AutoKUPA", "AutoKUPA", OnChangeEnabledAutoKUPA);
                 if (bKupaAvailable || bAnalKupaAvailable)
                 {
                     panel["AutoKUPA"] = window.AddChild(panel["AutoKUPA"]);
@@ -1227,6 +1266,8 @@ namespace CM3D2.AddYotogiSlider.Plugin
             {
                 ReloadConfig();
 
+                panel["AutoAHE"].Enabled = parseExIni("AutoAHE", "Enabed", panel["AutoAHE"].Enabled);
+                toggle["Convulsion"].Value = parseExIni("AutoAHE", "ConvulsionEnabled", toggle["Convulsion"].Value);
                 fOrgasmsPerAheLevel = parseExIni("AutoAHE", "OrgasmsPerLevel", fOrgasmsPerAheLevel);
                 fAheEyeDecrement    = parseExIni("AutoAHE", "EyeDecrement", fAheEyeDecrement);
                 for (int i = 0; i<3; i++) 
@@ -1241,9 +1282,11 @@ namespace CM3D2.AddYotogiSlider.Plugin
                     sAheOrgasmFaceBlend[i]  = parseExIniRaw("AutoAHE", "OrgasmFaceBlend_"+ i, sAheOrgasmFaceBlend[i]);
                 }
 
+                panel["AutoBOTE"].Enabled = parseExIni("AutoBOTE", "Enabed", panel["AutoBOTE"].Enabled);
                 iHaraIncrement = (int)parseExIni("AutoBOTE", "Increment", iHaraIncrement);
                 iBoteHaraMax   = (int)parseExIni("AutoBOTE", "Max",       iBoteHaraMax);
 
+                panel["AutoKUPA"].Enabled = parseExIni("AutoKUPA", "Enabed", panel["AutoKUPA"].Enabled);
                 iKupaIncrementPerOrgasm = (int)parseExIni("AutoKUPA", "IncrementPerOrgasm", iKupaIncrementPerOrgasm);
                 iKupaNormalMax          = (int)parseExIni("AutoKUPA", "NormalMax", iKupaNormalMax);
                 iKupaWaitingValue       = (int)parseExIni("AutoKUPA", "WaitingValue", iKupaWaitingValue);
@@ -1887,22 +1930,21 @@ namespace CM3D2.AddYotogiSlider.Plugin
             return -1;
         }
 
-        private float parseExIni(string section, string key, float def)
+        private T parseExIni<T>(string section, string key, T def)
         {
-            float x;
-            if (Preferences.HasSection(section))
+            string str = parseExIniRaw(section, key, null);
+            if (str != null)
             {
-                if (Preferences[section].HasKey(key))
+                var converter = System.ComponentModel.TypeDescriptor.GetConverter(typeof(T));
+                if (converter != null)
                 {
-                    if (Single.TryParse(Preferences[section][key].Value, out x))
+                    try
                     {
-                        //Debug.Log(section + ":"+ key + ":"+ x);
-                        return x;
+                        return (T)converter.ConvertFromString(str);
                     }
+                    catch (NotSupportedException) { /* nothing */ }
                 }
             }
-            
-            //Debug.Log(section + ":"+ key + ":default");
             return def;
         }
 
@@ -1920,6 +1962,19 @@ namespace CM3D2.AddYotogiSlider.Plugin
             
             //Debug.Log(section + ":"+ key + ":default");
             return def;
+        }
+
+        private void setExIni<T>(string section, string key, T value)
+        {
+            var converter = System.ComponentModel.TypeDescriptor.GetConverter(typeof(T));
+            if (converter != null)
+            {
+                try
+                {
+                    Preferences[section][key].Value = converter.ConvertToString(value);
+                }
+                catch (NotSupportedException) { /* nothing */ }
+            }
         }
 
 
@@ -2445,7 +2500,7 @@ namespace UnityObsoleteGui
 
         public GUIStyle Style = "toggle";
         public GUIContent Content;
-        public bool   Value  { get{ return val; } }
+        public bool   Value  { get{ return val; } set { val = value; } }
         public string Text   { get{ return Content.text; }  set{ Content.text = value; } }
 
         public event EventHandler<ToggleEventArgs> OnChange;
