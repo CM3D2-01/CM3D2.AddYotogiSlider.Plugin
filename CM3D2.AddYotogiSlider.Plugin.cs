@@ -35,7 +35,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
         #region Constants
 
         public const string PluginName = "AddYotogiSlider";
-        public const string Version    = "0.0.4.7+analkupa-v20151212";
+        public const string Version    = "0.0.4.7+analkupa-v20151214";
 
         private readonly float TimePerInit        = 1.00f;
         private readonly float TimePerUpdateSpeed = 0.33f;
@@ -1333,7 +1333,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
                 iAnalKupaWaitingValue       = parseExIni("AutoKUPA_Anal", "WaitingValue", iAnalKupaWaitingValue);
                 for (int i = 0; i<2; i++)
                 {
-                    iAnalKupaValue[i] = parseExIni("AutoKUPA", "Value_"+ i, iAnalKupaValue[i]);
+                    iAnalKupaValue[i] = parseExIni("AutoKUPA_Anal", "Value_"+ i, iAnalKupaValue[i]);
                 }
             }
 
