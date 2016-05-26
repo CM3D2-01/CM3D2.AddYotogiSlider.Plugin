@@ -16,30 +16,48 @@ using UnityObsoleteGui;
 using PV = UnityObsoleteGui.PixelValuesCM3D2;
 
 
+[assembly: AssemblyTitle("CM3D2.AddYotogiSlider.Plugin")]
+[assembly: AssemblyProduct(CM3D2.AddYotogiSlider.Plugin.AddYotogiSlider.Version)]
+[assembly: AssemblyVersion("0.0.4.7")]
+
+
+
 namespace CM3D2.AddYotogiSlider.Plugin
 {
 
-    [PluginFilter("CM3D2x64"), PluginFilter("CM3D2x86"), PluginFilter("CM3D2VRx64")]
-    [PluginName("CM3D2 AddYotogiSlider"), PluginVersion("0.0.4.7")]
+    [PluginFilter("CM3D2x64")]
+    [PluginFilter("CM3D2x86")]
+    [PluginFilter("CM3D2VRx64")]
+    [PluginName(AddYotogiSlider.PluginName)]
+    [PluginVersion(AddYotogiSlider.Version)]
     public class AddYotogiSlider : UnityInjector.PluginBase
     {
         #region Constants
-        
+
         public const string PluginName = "AddYotogiSlider";
-        public const string Version    = "0.0.4.7";
+        public const string Version    = "0.0.4.7+analkupa-v20151212";
 
         private readonly float TimePerInit        = 1.00f;
         private readonly float TimePerUpdateSpeed = 0.33f;
         private readonly float WaitFirstInit      = 5.00f;
         private readonly float WaitBoneLoad       = 1.00f;
         private readonly string commandUnitName = "/UI Root/YotogiPlayPanel/CommandViewer/SkillViewer/MaskGroup/SkillGroup/CommandParent/CommandUnit";
-        private readonly string LogLabel = AddYotogiSlider.PluginName + " : ";
+        private const string LogLabel = AddYotogiSlider.PluginName + " : ";
+
+        public enum KupaLevel
+        {
+            None = -1,
+            Sex = 0,
+            Vibe = 1,
+        }
 
         #endregion
 
 
 
         #region Variables
+
+        private KeyCode ToggleWindowKey = KeyCode.F5;
 
         private int   sceneLevel;
         private bool  visible             = false;
@@ -79,9 +97,9 @@ namespace CM3D2.AddYotogiSlider.Plugin
         private bool     bOrgasmAvailable    = false;                                                     //BodyShapeKeyチェック
         private float    fEyePosToSliderMul  = 5000f;
         private float    fOrgasmsPerAheLevel = 3f;
-        private int      idxAheOrgasm 
-        { 
-            get{ return (int)Math.Min( Math.Max( Math.Floor((iOrgasmCount - 1) / fOrgasmsPerAheLevel) , 0) , 2); } 
+        private int      idxAheOrgasm
+        {
+            get{ return (int)Math.Min( Math.Max( Math.Floor((iOrgasmCount - 1) / fOrgasmsPerAheLevel) , 0) , 2); }
         }
         private int[]    iAheExcite          = new int[] { 267, 233, 200 };                               //適用の興奮閾値
         private float    fAheDefEye          = 0f;
@@ -101,16 +119,21 @@ namespace CM3D2.AddYotogiSlider.Plugin
         private int iHaraIncrement = 10;  //一回の腹の増加値
         private int iBoteHaraMax   = 100; //腹の最大値
         private int iBoteCount     = 0;   //中出し回数
-        
+
         //AutoKUPA
         private bool  bKupaAvailable    = false;             //BodyShapeKeyチェック
         private bool  bKupaFuck         = false;             //挿入しているかどうか
-        private int   iKupaDef                = 0;           
+        private int   iKupaDef                = 0;
+        private int   iKupaStart              = 0;
         private int   iKupaIncrementPerOrgasm = 0;           //絶頂回数当たりの通常時局部開き値の増加値
         private int   iKupaNormalMax          = 0;           //通常時の局部開き最大値
         private int   iKupaMin
         {
-            get{ return (int)Mathf.Min(iKupaDef + iKupaIncrementPerOrgasm * iOrgasmCount, iKupaNormalMax); }
+            get
+            {
+                return (int)Mathf.Max(iKupaDef,
+                        Mathf.Min(iKupaStart + iKupaIncrementPerOrgasm * iOrgasmCount, iKupaNormalMax));
+            }
         }
         private int[] iKupaValue              = { 100, 50 }; //最大の局部開き値
         private int   iKupaWaitingValue       = 5;           //待機モーションでの局部開き値幅
@@ -120,18 +143,23 @@ namespace CM3D2.AddYotogiSlider.Plugin
         private bool  bAnalKupaAvailable          = false;   //BodyShapeKeyチェック
         private bool  bAnalKupaFuck               = false;   //挿入しているかどうか
         private int   iAnalKupaDef                = 0;
+        private int   iAnalKupaStart              = 0;
         private int   iAnalKupaIncrementPerOrgasm = 0;       //絶頂回数当たりの通常時アナル開き値の増加値
         private int   iAnalKupaNormalMax          = 0;       //通常時のアナル開き最大値
         private int   iAnalKupaMin
         {
-            get{ return (int)Mathf.Min(iAnalKupaDef + iAnalKupaIncrementPerOrgasm * iOrgasmCount, iAnalKupaNormalMax); }
+            get
+            {
+                return (int)Mathf.Max(iAnalKupaDef,
+                        Mathf.Min(iAnalKupaStart + iAnalKupaIncrementPerOrgasm * iOrgasmCount, iAnalKupaNormalMax));
+            }
         }
         private int[] iAnalKupaValue              = { 100, 50 }; //最大のアナル開き値
         private int   iAnalKupaWaitingValue       = 5;           //待機モーションでのアナル開き値幅
         private float fPassedTimeOnAutoAnalKupaWaiting = 0;
 
         //FaceNames
-        private string[] sFaceNames = 
+        private string[] sFaceNames =
         {
         "エロ通常１", "エロ通常２", "エロ通常３", "エロ羞恥１", "エロ羞恥２", "エロ羞恥３",
         "エロ興奮０", "エロ興奮１", "エロ興奮２", "エロ興奮３", "エロ緊張",   "エロ期待",
@@ -140,23 +168,23 @@ namespace CM3D2.AddYotogiSlider.Plugin
         "エロ絶頂",  "エロ痛み我慢", "エロ痛み我慢２","エロ痛み我慢３", "エロ放心", "発情",
         "通常射精後１", "通常射精後２", "興奮射精後１", "興奮射精後２", "絶頂射精後１", "絶頂射精後２",
         "エロ舐め愛情", "エロ舐め愛情２", "エロ舐め快楽", "エロ舐め快楽２", "エロ舐め嫌悪", "エロ舐め通常",
-        "閉じ舐め愛情", "閉じ舐め快楽", "閉じ舐め快楽２", "閉じ舐め嫌悪", "閉じ舐め通常", "接吻", 
+        "閉じ舐め愛情", "閉じ舐め快楽", "閉じ舐め快楽２", "閉じ舐め嫌悪", "閉じ舐め通常", "接吻",
         "エロフェラ愛情", "エロフェラ快楽", "エロフェラ嫌悪", "エロフェラ通常", "エロ舌責", "エロ舌責快楽",
         "閉じフェラ愛情", "閉じフェラ快楽", "閉じフェラ嫌悪", "閉じフェラ通常", "閉じ目",   "目口閉じ",
-        "通常", "怒り", "笑顔", "微笑み", "悲しみ２", "泣き",  
-        "きょとん", "ジト目","あーん", "ためいき", "ドヤ顔", "にっこり", 
+        "通常", "怒り", "笑顔", "微笑み", "悲しみ２", "泣き",
+        "きょとん", "ジト目","あーん", "ためいき", "ドヤ顔", "にっこり",
         "びっくり", "ぷんすか", "まぶたギュ", "むー", "引きつり笑顔", "疑問",
-        "苦笑い", "困った", "思案伏せ目", "少し怒り", "誘惑",  "拗ね", 
+        "苦笑い", "困った", "思案伏せ目", "少し怒り", "誘惑",  "拗ね",
         "優しさ","居眠り安眠","目を見開いて","痛みで目を見開いて", "余韻弱","目口閉じ",
         "口開け","恥ずかしい","照れ", "照れ叫び","ウインク照れ", "にっこり照れ",
         "ダンス目つむり","ダンスあくび","ダンスびっくり","ダンス微笑み","ダンス目あけ","ダンス目とじ",
         "ダンスウインク", "ダンスキス", "ダンスジト目","ダンス困り顔", "ダンス真剣","ダンス憂い",
-        "ダンス誘惑", "頬０涙０", "頬０涙１", "頬０涙２", "頬０涙３", "頬１涙０", 
-        "頬１涙１",   "頬１涙２", "頬１涙３", "頬２涙０", "頬２涙１", "頬２涙２", 
+        "ダンス誘惑", "頬０涙０", "頬０涙１", "頬０涙２", "頬０涙３", "頬１涙０",
+        "頬１涙１",   "頬１涙２", "頬１涙３", "頬２涙０", "頬２涙１", "頬２涙２",
         "頬２涙３",   "頬３涙１", "頬３涙０", "頬３涙２", "頬３涙３", "追加よだれ",
         "頬０涙０よだれ", "頬０涙１よだれ", "頬０涙２よだれ", "頬０涙３よだれ", "頬１涙０よだれ", "頬１涙１よだれ",
         "頬１涙２よだれ", "頬１涙３よだれ", "頬２涙０よだれ", "頬２涙１よだれ", "頬２涙２よだれ", "頬２涙３よだれ",
-        "頬３涙０よだれ", "頬３涙１よだれ", "頬３涙２よだれ", "頬３涙３よだれ" , "エラー", "デフォ", 
+        "頬３涙０よだれ", "頬３涙１よだれ", "頬３涙２よだれ", "頬３涙３よだれ" , "エラー", "デフォ",
         };
         private string[] sFaceBlendCheek = new string[]{"頬０", "頬１", "頬２", "頬３"};
         private string[] sFaceBlendTear  = new string[]{"涙０", "涙１", "涙２", "涙３"};
@@ -226,7 +254,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
             public override void Draw(Rect outRect)
             {
                 Rect groupRect = PV.InsideRect(outRect, padding);
-                
+
                 labelStyle = "box";
                 GUI.Label(outRect, "", labelStyle);
                 GUI.BeginGroup(groupRect);
@@ -262,7 +290,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
                             GUI.Label(cur, "Pin", labelStyle);
                         }
                         break;
-                        
+
                         case HeaderUI.Face:
                         {
                             cur.width = groupRect.width * 0.375f;
@@ -292,7 +320,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
                 GUI.EndGroup();
             }
 
-            public override void Resize() { Resize(false); } 
+            public override void Resize() { Resize(false); }
             public override void Resize(bool broadCast)
             {
                 float height = PV.Line(headerHeightPV) + PV.PropPx(3);
@@ -378,7 +406,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
                 cur.y -= PV.PropPx(4);
                 cur.x += cur.width;
 
-                if (pinEnabled) 
+                if (pinEnabled)
                 {
                     cur.width = outRect.width * 0.075f;
                     cur.y -= PV.PropPx(2);
@@ -386,7 +414,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
                 }
             }
 
-            public override void Resize() { Resize(false); } 
+            public override void Resize() { Resize(false); }
             public override void Resize(bool broadCast) { rect.height = PV.Line(lineHeightPV); }
         }
 
@@ -434,9 +462,9 @@ namespace CM3D2.AddYotogiSlider.Plugin
                 toggle.Draw(cur);
             }
 
-            public override void Resize() { Resize(false); } 
+            public override void Resize() { Resize(false); }
             public override void Resize(bool broadCast) { rect.height = PV.Line(lineHeightPV); }
-            
+
             private Color toggleColor(bool b) { return b ? new Color(1f, 1f, 1f, 1f) : new Color(1f, 0.2f, 0.2f, 1f);  }
             private string toggleText(bool b) { return b ? "Enabled" : "Disabled"; }
         }
@@ -459,12 +487,12 @@ namespace CM3D2.AddYotogiSlider.Plugin
             private int      tabSelected   = -1;
             private Vector2  scrollViewVector = Vector2.zero;
             private SelectButton[] selectButton;
-            
+
             public bool   GirdToggle = false;
             public string GirdLabelText = "";
 
             public event EventHandler<ButtonEventArgs> OnClick;
-                
+
             public YotogiButtonGrid(string name, string[] buttonNames, EventHandler<ButtonEventArgs> _onClick, int row, bool tabEnabled)
             : base(name, new Rect (Window.AutoLayout, Window.AutoLayout, Window.AutoLayout, 0))
             {
@@ -472,8 +500,8 @@ namespace CM3D2.AddYotogiSlider.Plugin
                 this.OnClick    += _onClick;
                 this.viewRow     = row;
                 this.tabEnabled  = tabEnabled;
-                
-                
+
+
                 if (tabEnabled)
                 {
                     selectButton = new SelectButton[2]
@@ -481,7 +509,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
                           new SelectButton("SelectButton:Tear",  rect, new string[4]{"涙０", "涙１", "涙２", "涙３"}, this.OnSelectButtonFaceBlend)};
                     onChangeTab(0);
                 }
-                
+
                 Resize();
             }
 
@@ -495,7 +523,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
                 GUI.BeginGroup(outRect);
                 {
                     Rect cur = new Rect(0, 0, outRect.width, PV.Line(lineHeightPV));
-                    
+
                     if (tabEnabled)
                     {
                         cur.width  = outRect.width * 0.3f;
@@ -508,7 +536,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
 
                         cur.width  = outRect.width * 0.7f;
                         onChangeTab( GUI.Toolbar(cur, tabSelected, new string[2]{ "頬・涙・涎", "全種Face"}, buttonStyle) );
-                        
+
                         cur.x  = 0f;
                         cur.y += cur.height + PV.PropPx(3);
                         cur.width = outRect.width;
@@ -536,7 +564,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
                                     if (rowPerSpacer > 0 && row % rowPerSpacer == 0) scrlCur.y += spacer;
                                     row++;
                                     col = 1;
-                                } 
+                                }
                                 else
                                 {
                                     scrlCur.x += scrlCur.width;
@@ -554,12 +582,12 @@ namespace CM3D2.AddYotogiSlider.Plugin
                         cur.y += cur.height;
                         selectButton[1].Draw(cur);
                     }
-                    
+
                 }
                 GUI.EndGroup();
             }
-            
-            public override void Resize() { Resize(false); } 
+
+            public override void Resize() { Resize(false); }
             public override void Resize(bool broadCast)
             {
                 int spacer  = PV.PropPx(spacerPx);
@@ -568,28 +596,28 @@ namespace CM3D2.AddYotogiSlider.Plugin
                 if (!tabEnabled)           rect.height = PV.Line(lineHeightPV) * viewRow + spacer * (int)(viewRow / rowPerSpacer);
                 else if (tabSelected == 0) rect.height = tabLine + PV.Line(lineHeightPV) * 2;
                 else if (tabSelected == 1) rect.height = tabLine + PV.Line(lineHeightPV) * viewRow + spacer * (int)(viewRow / rowPerSpacer);
-                
+
                 if (!broadCast) notifyParent(true, false);
             }
 
-            public void OnSelectButtonFaceBlend(object sb, SelectEventArgs args) 
+            public void OnSelectButtonFaceBlend(object sb, SelectEventArgs args)
             {
-                if (((YotogiPanel)Parent).Enabled) 
+                if (((YotogiPanel)Parent).Enabled)
                 {
                     string senderName = args.Name;
                     string faceName   = args.ButtonName;
-                    
+
                     if (senderName == "SelectButton:Cheek")     faceName = faceName + selectButton[1].Value;
                     else if (senderName == "SelectButton:Tear") faceName = selectButton[0].Value + faceName;
                     if (GirdToggle) faceName += "よだれ";
-                    
+
                     OnClick(this, new ButtonEventArgs(this.name, faceName));
                 }
             }
-            
+
             //----
 
-            private void onClickDroolToggle(bool b) 
+            private void onClickDroolToggle(bool b)
             {
                 if (b != GirdToggle)
                 {
@@ -599,7 +627,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
                 }
             }
 
-            private void onChangeTab(int i) 
+            private void onChangeTab(int i)
             {
                 if (i != tabSelected)
                 {
@@ -608,11 +636,11 @@ namespace CM3D2.AddYotogiSlider.Plugin
                 }
             }
 
-            private void onClick(bool click, string s) 
+            private void onClick(bool click, string s)
             {
                 if (click) OnClick(this, new ButtonEventArgs(this.name, s));
             }
-            
+
             private Color toggleColor(bool b) { return b ? new Color(1f, 1f, 1f, 1f) : new Color(1f, 0.2f, 0.2f, 1f); }
         }
 
@@ -628,9 +656,9 @@ namespace CM3D2.AddYotogiSlider.Plugin
 
             public int    CurrentIndex { get{ return currentIndex;} }
             public string CurrentName  { get{ return names[currentIndex];} }
-            
+
             public event EventHandler<ButtonEventArgs> OnClick;
-            
+
             public YotogiLineSelect(string name, string _label, string[] _names, int def, EventHandler<ButtonEventArgs> _onClick)
             : base(name, new Rect (Window.AutoLayout, Window.AutoLayout, Window.AutoLayout, 0))
             {
@@ -639,10 +667,10 @@ namespace CM3D2.AddYotogiSlider.Plugin
                 Array.Copy(_names, this.names, _names.Length);
                 this.currentIndex = def;
                 this.OnClick += _onClick;
-                
+
                 Resize();
             }
-            
+
             public override void Draw(Rect outRect)
             {
                 Rect cur = outRect;
@@ -673,7 +701,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
                 onClick( GUI.Button(cur, ">"), 1 );
 
             }
-            
+
             public override void Resize(bool bc)
             {
                 this.rect.height = PV.Line(heightPV);
@@ -684,7 +712,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
             {
                 if (click)
                 {
-                    if ((di < 0 && currentIndex > 0) || (di > 0 && currentIndex < names.Length - 1)) 
+                    if ((di < 0 && currentIndex > 0) || (di > 0 && currentIndex < names.Length - 1))
                     {
                         currentIndex += di;
                         OnClick(this, new ButtonEventArgs(this.name, names[currentIndex]));
@@ -701,7 +729,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
                 Quadratic,
                 Convulsion
             }
-            
+
             private float[] value;
             private float[] vFrom;
             private float[] vTo;
@@ -726,7 +754,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
             public PlayAnime(string name, int n, float st, float ft) : this(name, n, st, ft, Formula.Linear) {}
             public PlayAnime(string name, int n, float st, float ft, Formula t)
             {
-                Name        = name; 
+                Name        = name;
                 num         = n;
                 value       = new float[n];
                 vFrom       = new float[n];
@@ -740,14 +768,14 @@ namespace CM3D2.AddYotogiSlider.Plugin
             public bool Contains(string s)              { return Name.Contains(s); }
 
             public void SetFrom(float vform)            { vFrom[0] = vform; }
-            public void SetTo(float vto)                { vTo[0]   = vto; } 
+            public void SetTo(float vto)                { vTo[0]   = vto; }
             public void SetSetter(Action<float> func)   { setValue0 = func; }
-            public void Set(float vform, float vto)     { SetFrom(vform); SetTo(vto); } 
+            public void Set(float vform, float vto)     { SetFrom(vform); SetTo(vto); }
 
-            public void SetFrom(float[] vform)          { if(vform.Length == num) Array.Copy(vform ,vFrom, num); } 
+            public void SetFrom(float[] vform)          { if(vform.Length == num) Array.Copy(vform ,vFrom, num); }
             public void SetTo(float[] vto)              { if(vto.Length   == num) Array.Copy(vto,   vTo,   num); }
-            public void SetSetter(Action<float[]> func) { setValue = func; } 
-            public void Set(float[] vform, float[] vto) { SetFrom(vform); SetTo(vto); } 
+            public void SetSetter(Action<float[]> func) { setValue = func; }
+            public void Set(float[] vform, float[] vto) { SetFrom(vform); SetTo(vto); }
 
             public void Play()
             {
@@ -756,22 +784,22 @@ namespace CM3D2.AddYotogiSlider.Plugin
                     passedTime = 0f;
                     play = true;
                 }
-            } 
+            }
             public void Play(float vform, float vto)     { Set(vform, vto); Play(); }
             public void Play(float[] vform, float[] vto) { Set(vform, vto); Play(); }
 
-            public void Stop() { play = false; } 
+            public void Stop() { play = false; }
 
             public void Update()
             {
                 if (play)
                 {
                     bool change = false;
-                    
+
                     for(int i=0; i<num; i++)
                     {
                         if (vFrom[i] == vTo[i]) continue;
-                        
+
                         if (passedTime >= finishTime)
                         {
                             Stop();
@@ -786,20 +814,20 @@ namespace CM3D2.AddYotogiSlider.Plugin
                                     change = true;
                                 }
                                 break;
-                                
+
                                 case Formula.Quadratic :
                                 {
                                     value[i] = vFrom[i] + (vTo[i] - vFrom[i]) * Mathf.Pow(progress, 2);
                                     change = true;
                                 }
                                 break;
-                                
+
                                 case Formula.Convulsion :
                                 {
                                     float t = Mathf.Pow(progress + 0.05f * UnityEngine.Random.value, 2f) * 2f * Mathf.PI * 6f;
-                                    
-                                    value[i] = (vTo[i] - vFrom[i]) 
-                                            * Mathf.Clamp( Mathf.Clamp( Mathf.Pow((Mathf.Cos(t-Mathf.PI/2f)+1f)/2f, 3f) * Mathf.Pow(1f - progress, 2f) * 4f, 0f, 1f ) 
+
+                                    value[i] = (vTo[i] - vFrom[i])
+                                            * Mathf.Clamp( Mathf.Clamp( Mathf.Pow((Mathf.Cos(t-Mathf.PI/2f)+1f)/2f, 3f) * Mathf.Pow(1f - progress, 2f) * 4f, 0f, 1f )
                                                             + Mathf.Sin(t*3f)*0.1f * Mathf.Pow(1f - progress, 3f), 0f, 1f );
 
                                     if (progress < 0.03f) value[i] *= Mathf.Pow(1f - (0.03f - progress) * 33f, 2f);
@@ -807,11 +835,11 @@ namespace CM3D2.AddYotogiSlider.Plugin
 
                                 }
                                 break;
-                                
+
                                 default : break;
                             }
-                            
-                            //Debug.LogError("PlayAnime["+Name+"].Update :"+ value[i]);
+
+                            //LogError("PlayAnime["+Name+"].Update : {0}", value[i]);
                         }
                     }
 
@@ -849,7 +877,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
             pa["AKPA.挿入.1"] = new PlayAnime("AKPA.挿入.1", 1, 1.50f,  2.50f);
             pa["AKPA.止める"] = new PlayAnime("AKPA.止める", 1, 0.00f,  2.00f);
         }
-        
+
 
         public void OnLevelWasLoaded(int level)
         {
@@ -868,7 +896,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
             {
                 switch (yotogiPlayManager.fade_status)
                 {
-                    case WfScreenChildren.FadeStatus.Null : 
+                    case WfScreenChildren.FadeStatus.Null :
                     {
                         finalize();
                     }
@@ -893,11 +921,11 @@ namespace CM3D2.AddYotogiSlider.Plugin
                         }
                         else if (canStart)
                         {
-                            if (Input.GetKeyDown(KeyCode.F5))
+                            if (Input.GetKeyDown(ToggleWindowKey))
                             {
                                 winAnimeRect = window.Rectangle;
                                 visible = !visible;
-                                playAnimeOnInputKeyDown(KeyCode.F5);
+                                playAnimeOnInputKeyDown(ToggleWindowKey);
                             }
 
                             if (fPassedTimeOnCommand >= 0f) fPassedTimeOnCommand += Time.deltaTime;
@@ -919,7 +947,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
             {
                 updateAnimeOnGUI();
 
-                if (visible && !pa["WIN.Load"].NowPlaying) 
+                if (visible && !pa["WIN.Load"].NowPlaying)
                 {
                     updateCameraControl();
                     window.Draw();
@@ -939,7 +967,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
             fLastSliderSensitivity = slider["Sensitivity"].Value;
             iLastSliderFrustration = getSliderFrustration();
             fPassedTimeOnCommand = 0f;
-            
+
             if (panel["Status"].Enabled) updateMaidFrustration(iLastSliderFrustration);
             initAnimeOnCommand();
 
@@ -949,7 +977,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
             syncSlidersOnClickCommand(command_data.status);
 
 
-            if (command_data.basic.command_type == Yotogi.SkillCommandType.絶頂) 
+            if (command_data.basic.command_type == Yotogi.SkillCommandType.絶頂)
             {
                 if (!panel["FaceAnime"].Enabled && pa["AHE.絶頂.0"].NowPlaying)
                 {
@@ -961,11 +989,11 @@ namespace CM3D2.AddYotogiSlider.Plugin
 
         public bool OnYotogiKagManagerTagFace(KagTagSupport tag_data)
         {
-            if (panel["FaceAnime"].Enabled || pa["AHE.絶頂.0"].NowPlaying) 
+            if (panel["FaceAnime"].Enabled || pa["AHE.絶頂.0"].NowPlaying)
             {
                 return false;
             }
-            else 
+            else
             {
                 panel["FaceAnime"].HeaderUILabelText = tag_data.GetTagProperty("name").AsString();
                 return orgTagFace(tag_data);
@@ -974,11 +1002,11 @@ namespace CM3D2.AddYotogiSlider.Plugin
 
         public bool OnYotogiKagManagerTagFaceBlend(KagTagSupport tag_data)
         {
-            if (panel["FaceBlend"].Enabled || pa["AHE.絶頂.0"].NowPlaying) 
+            if (panel["FaceBlend"].Enabled || pa["AHE.絶頂.0"].NowPlaying)
             {
                 return false;
             }
-            else 
+            else
             {
                 panel["FaceBlend"].HeaderUILabelText = tag_data.GetTagProperty("name").AsString();
                 return orgTagFaceBlend(tag_data);
@@ -986,7 +1014,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
         }
 
         //----
-        
+
         public void OnChangeSliderExcite(object ys, SliderEventArgs args)
         {
             if (panel["Status"].Enabled) updateMaidExcite((int)args.Value);
@@ -1016,7 +1044,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
         {
             updateMaidEyePosY(args.Value);
         }
-        
+
         public void OnChangeSliderHara(object ys, SliderEventArgs args)
         {
             updateMaidHaraValue(args.Value);
@@ -1063,7 +1091,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
 
         public void OnClickButtonFaceAnime(object ygb, ButtonEventArgs args)
         {
-            if (panel["FaceAnime"].Enabled) 
+            if (panel["FaceAnime"].Enabled)
             {
                maid.FaceAnime(args.ButtonName, 1f, 0);
                panel["FaceAnime"].HeaderUILabelText = args.ButtonName;
@@ -1072,7 +1100,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
 
         public void OnClickButtonFaceBlend(object ysg, ButtonEventArgs args)
         {
-            if (panel["FaceBlend"].Enabled) 
+            if (panel["FaceBlend"].Enabled)
             {
                 maid.FaceBlend(args.ButtonName);
                 panel["FaceBlend"].HeaderUILabelText = args.ButtonName;
@@ -1094,17 +1122,17 @@ namespace CM3D2.AddYotogiSlider.Plugin
         {
             yield return new WaitForSeconds(WaitFirstInit);
             while ( !(bInitCompleted = initialize()) ) yield return new WaitForSeconds(waitTime);
-            Debug.Log(LogLabel +"Initialization complete.");
+            LogDebug("Initialization complete.");
         }
 
         private bool initialize()
         {
-            if (!this.goCommandUnit) this.goCommandUnit = GameObject.Find(commandUnitName); 
+            if (!this.goCommandUnit) this.goCommandUnit = GameObject.Find(commandUnitName);
             if (!IsActive(this.goCommandUnit)) return false; // 夜伽コマンド画面かどうか
 
             this.maid = GameMain.Instance.CharacterMgr.GetMaid(0);
             if (!this.maid) return false;
-            
+
             this.maidStatusInfo = getFieldInfo<MaidParam>("status_");
             if (IsNull(this.maidStatusInfo)) return false;
 
@@ -1116,7 +1144,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
 
             // 夜伽コマンドフック
             {
-                this.yotogiPlayManager = getInstance<YotogiPlayManager>(); 
+                this.yotogiPlayManager = getInstance<YotogiPlayManager>();
                 if (!this.yotogiPlayManager) return false;
 
                 YotogiCommandFactory cf = getFieldValue<YotogiPlayManager, YotogiCommandFactory>(this.yotogiPlayManager, "command_factory_");
@@ -1124,7 +1152,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
 
                 try {
                 cf.SetCommandCallback(new YotogiCommandFactory.CommandCallback(this.OnYotogiPlayManagerOnClickCommand));
-                } catch(Exception ex) { Debug.LogError(LogLabel + "SetCommandCallback() : "+ ex); return false; }
+                } catch(Exception ex) { LogError("SetCommandCallback() : {0}", ex); return false; }
 
                 this.orgOnClickCommand = getMethodDelegate<YotogiPlayManager, Action<Yotogi.SkillData.Command.Data>>(this.yotogiPlayManager, "OnClickCommand");
                 if (IsNull(this.orgOnClickCommand)) return false;
@@ -1137,14 +1165,14 @@ namespace CM3D2.AddYotogiSlider.Plugin
 
                 this.kagScript = getFieldValue<YotogiKagManager, KagScript>(ykm, "kag_");
                 if (IsNull(this.kagScript)) return false;
-                
+
                 try{
                 this.kagScript.RemoveTagCallBack("face");
                 this.kagScript.AddTagCallBack("face", new KagScript.KagTagCallBack(this.OnYotogiKagManagerTagFace));
                 this.kagScript.RemoveTagCallBack("faceblend");
                 this.kagScript.AddTagCallBack("faceblend", new KagScript.KagTagCallBack(this.OnYotogiKagManagerTagFaceBlend));
                 kagScriptCallbacksOverride = true;
-                } catch(Exception ex) { Debug.LogError(LogLabel +"kagScriptCallBack() : "+ ex);  return false; }
+                } catch(Exception ex) { LogError("kagScriptCallBack() : {0}", ex);  return false; }
 
                 this.orgTagFace = getMethodDelegate<YotogiKagManager, Func<KagTagSupport, bool>>(ykm, "TagFace");
                 this.orgTagFaceBlend = getMethodDelegate<YotogiKagManager, Func<KagTagSupport, bool>>(ykm, "TagFaceBlend");
@@ -1159,14 +1187,14 @@ namespace CM3D2.AddYotogiSlider.Plugin
                 foreach(KeyValuePair<string, PlayAnime> o in pa)
                 {
                     PlayAnime p = o.Value;
-                    if (!p.SetterExist) 
+                    if (!p.SetterExist)
                     {
                         if (p.Contains("WIN"))  p.SetSetter(updateWindowAnime);
                         if (p.Contains("BOTE")) p.SetSetter(updateMaidHaraValue);
                         if (p.Contains("KUPA")) p.SetSetter(updateShapeKeyKupaValue);
                         if (p.Contains("AKPA")) p.SetSetter(updateShapeKeyAnalKupaValue);
                         if (p.Contains("AHE")) p.SetSetter(updateOrgasmConvulsion);
-                        
+
                         if (p.Contains("AHE.継続")) p.SetSetter(updateMaidEyePosY);
                         if (p.Contains("AHE.絶頂")) p.SetSetter(updateAheOrgasm);
 
@@ -1178,7 +1206,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
                 iOrgasmCount    = 0;
                 iAheOrgasmChain = 0;
             }
-            
+
             // BodyShapeKeyCheck
             bKupaAvailable   = maid.body0.goSlot[0].morph.hash.ContainsKey("kupa");
             bOrgasmAvailable = maid.body0.goSlot[0].morph.hash.ContainsKey("orgasm");
@@ -1257,54 +1285,72 @@ namespace CM3D2.AddYotogiSlider.Plugin
                 panel["FaceAnime"].AddChild(toggle["Lipsync"]);
                 panel["FaceAnime"].AddChild(grid["FaceAnime"]);
                 window.AddHorizontalSpacer();
-                
+
                 panel["FaceBlend"] = window.AddChild<YotogiPanel>( new YotogiPanel("Panel:FaceBlend", "FaceBlend", YotogiPanel.HeaderUI.Face) );
                 panel["FaceBlend"].AddChild(grid["FaceBlend"]);
             }
-            
+
             // Preferences
             {
                 ReloadConfig();
 
-                panel["AutoAHE"].Enabled = parseExIni("AutoAHE", "Enabed", panel["AutoAHE"].Enabled);
+
+                ToggleWindowKey = parseExIni("Keys", "ToggleWindow", ToggleWindowKey);
+
+                panel["AutoAHE"].Enabled = parseExIni("AutoAHE", "Enabled", panel["AutoAHE"].Enabled);
                 toggle["Convulsion"].Value = parseExIni("AutoAHE", "ConvulsionEnabled", toggle["Convulsion"].Value);
                 fOrgasmsPerAheLevel = parseExIni("AutoAHE", "OrgasmsPerLevel", fOrgasmsPerAheLevel);
                 fAheEyeDecrement    = parseExIni("AutoAHE", "EyeDecrement", fAheEyeDecrement);
-                for (int i = 0; i<3; i++) 
+                for (int i = 0; i<3; i++)
                 {
-                    iAheExcite[i]           = (int)parseExIni("AutoAHE", "ExciteThreshold_"+ i, iAheExcite[i]);
+                    iAheExcite[i]           = parseExIni("AutoAHE", "ExciteThreshold_"+ i, iAheExcite[i]);
                     fAheNormalEyeMax[i]     = parseExIni("AutoAHE", "NormalEyeMax_"+ i, fAheNormalEyeMax[i]);
                     fAheOrgasmEyeMax[i]     = parseExIni("AutoAHE", "OrgasmEyeMax_"+ i, fAheOrgasmEyeMax[i]);
                     fAheOrgasmEyeMin[i]     = parseExIni("AutoAHE", "OrgasmEyeMin_"+ i, fAheOrgasmEyeMin[i]);
                     fAheOrgasmSpeed[i]      = parseExIni("AutoAHE", "OrgasmMotionSpeed_"+ i, fAheOrgasmSpeed[i]);
                     fAheOrgasmConvulsion[i] = parseExIni("AutoAHE",  "OrgasmConvulsion_"+ i, fAheOrgasmConvulsion[i]);
-                    sAheOrgasmFace[i]       = parseExIniRaw("AutoAHE", "OrgasmFace_"+ i, sAheOrgasmFace[i]);
-                    sAheOrgasmFaceBlend[i]  = parseExIniRaw("AutoAHE", "OrgasmFaceBlend_"+ i, sAheOrgasmFaceBlend[i]);
+                    sAheOrgasmFace[i]       = parseExIni("AutoAHE", "OrgasmFace_"+ i, sAheOrgasmFace[i]);
+                    sAheOrgasmFaceBlend[i]  = parseExIni("AutoAHE", "OrgasmFaceBlend_"+ i, sAheOrgasmFaceBlend[i]);
                 }
 
-                panel["AutoBOTE"].Enabled = parseExIni("AutoBOTE", "Enabed", panel["AutoBOTE"].Enabled);
-                iHaraIncrement = (int)parseExIni("AutoBOTE", "Increment", iHaraIncrement);
-                iBoteHaraMax   = (int)parseExIni("AutoBOTE", "Max",       iBoteHaraMax);
+                panel["AutoBOTE"].Enabled = parseExIni("AutoBOTE", "Enabled", panel["AutoBOTE"].Enabled);
+                iHaraIncrement = parseExIni("AutoBOTE", "Increment", iHaraIncrement);
+                iBoteHaraMax   = parseExIni("AutoBOTE", "Max",       iBoteHaraMax);
 
-                panel["AutoKUPA"].Enabled = parseExIni("AutoKUPA", "Enabed", panel["AutoKUPA"].Enabled);
-                iKupaIncrementPerOrgasm = (int)parseExIni("AutoKUPA", "IncrementPerOrgasm", iKupaIncrementPerOrgasm);
-                iKupaNormalMax          = (int)parseExIni("AutoKUPA", "NormalMax", iKupaNormalMax);
-                iKupaWaitingValue       = (int)parseExIni("AutoKUPA", "WaitingValue", iKupaWaitingValue);
-                for (int i = 0; i<2; i++) 
+                panel["AutoKUPA"].Enabled = parseExIni("AutoKUPA", "Enabled", panel["AutoKUPA"].Enabled);
+                iKupaStart              = parseExIni("AutoKUPA", "Start", iKupaStart);
+                iKupaIncrementPerOrgasm = parseExIni("AutoKUPA", "IncrementPerOrgasm", iKupaIncrementPerOrgasm);
+                iKupaNormalMax          = parseExIni("AutoKUPA", "NormalMax", iKupaNormalMax);
+                iKupaWaitingValue       = parseExIni("AutoKUPA", "WaitingValue", iKupaWaitingValue);
+                for (int i = 0; i<2; i++)
                 {
-                    iKupaValue[i] = (int)parseExIni("AutoKUPA", "Value_"+ i, iKupaValue[i]);
+                    iKupaValue[i] = parseExIni("AutoKUPA", "Value_"+ i, iKupaValue[i]);
                 }
 
-                iAnalKupaIncrementPerOrgasm = (int)parseExIni("AutoKUPA_Anal", "IncrementPerOrgasm", iAnalKupaIncrementPerOrgasm);
-                iAnalKupaNormalMax          = (int)parseExIni("AutoKUPA_Anal", "NormalMax", iAnalKupaNormalMax);
-                iAnalKupaWaitingValue       = (int)parseExIni("AutoKUPA_Anal", "WaitingValue", iAnalKupaWaitingValue);
-                for (int i = 0; i<2; i++) 
+                iAnalKupaStart              = parseExIni("AutoKUPA_Anal", "Start", iAnalKupaStart);
+                iAnalKupaIncrementPerOrgasm = parseExIni("AutoKUPA_Anal", "IncrementPerOrgasm", iAnalKupaIncrementPerOrgasm);
+                iAnalKupaNormalMax          = parseExIni("AutoKUPA_Anal", "NormalMax", iAnalKupaNormalMax);
+                iAnalKupaWaitingValue       = parseExIni("AutoKUPA_Anal", "WaitingValue", iAnalKupaWaitingValue);
+                for (int i = 0; i<2; i++)
                 {
-                    iAnalKupaValue[i] = (int)parseExIni("AutoKUPA", "Value_"+ i, iAnalKupaValue[i]);
+                    iAnalKupaValue[i] = parseExIni("AutoKUPA", "Value_"+ i, iAnalKupaValue[i]);
                 }
             }
 
             return true;
+        }
+
+        private Yotogi.SkillData getCurrentSkillData()
+        {
+            try
+            {
+                Yotogi.SkillDataPair sdp = getFieldValue<YotogiPlayManager, Yotogi.SkillDataPair>(this.yotogiPlayManager, "skill_pair_");
+                return sdp.base_data;
+            }
+            catch(Exception)
+            {
+                return null;
+            }
         }
 
         private void initOnStartSkill()
@@ -1314,8 +1360,21 @@ namespace CM3D2.AddYotogiSlider.Plugin
             bKupaFuck          = false;
             bAnalKupaFuck      = false;
             iBoteCount         = 0;
+            iKupaDef           = 0;
+            iAnalKupaDef       = 0;
 
             maid.SetProp("Hara", iDefHara, false);
+
+            Yotogi.SkillData sd = getCurrentSkillData();
+            if (sd != null)
+            {
+                LogDebug("Start Skill : {0}", sd.name);
+                KupaLevel kl = checkSkillKupaLevel(sd);
+                if (kl != KupaLevel.None) iKupaDef = iKupaValue[(int)kl];
+                kl = checkSkillAnalKupaLevel(sd);
+                if (kl != KupaLevel.None) iAnalKupaDef = iAnalKupaValue[(int)kl];
+            }
+
             if (panel["AutoKUPA"].Enabled)
             {
                 if (bKupaAvailable) updateShapeKeyKupaValue(iKupaMin);
@@ -1326,14 +1385,24 @@ namespace CM3D2.AddYotogiSlider.Plugin
                 if (bKupaAvailable) updateShapeKeyKupaValue(0f);
                 if (bAnalKupaAvailable) updateShapeKeyAnalKupaValue(0f);
             }
+            if (bOrgasmAvailable) updateShapeKeyOrgasmValue(0f);
 
             foreach (KeyValuePair<string, PlayAnime> kvp in pa) if (kvp.Value.NowPlaying) kvp.Value.Stop();
-            
+
             StartCoroutine( getBoneAnimetionCoroutine(WaitBoneLoad) );
 
             bSyncMotionSpeed = true;
             StartCoroutine( syncMotionSpeedSliderCoroutine(TimePerUpdateSpeed) );
-            
+
+            if (panel["Status"].Enabled && slider["Mind"].Pin)
+            {
+                updateMaidMind((int)slider["Mind"].Value);
+            }
+            else
+            {
+                slider["Mind"].Value = (float)maid.Param.status.cur_mind;
+            }
+
             //if (lSelect["StageSelcet"].CurrentName != YotogiStageSelectManager.StagePrefab)
             //{
             //    GameMain.Instance.BgMgr.ChangeBg(lSelect["StageSelcet"].CurrentName);
@@ -1355,16 +1424,16 @@ namespace CM3D2.AddYotogiSlider.Plugin
             bInitCompleted       = false;
             bSyncMotionSpeed     = false;
             fPassedTimeOnCommand = -1f;
-            bFadeInWait          = false; 
+            bFadeInWait          = false;
 
             iLastExcite              = 0;
             iOrgasmCount             = 0;
             iLastSliderFrustration   = 0;
             fLastSliderSensitivity   = 0f;
-            
+
             iDefHara   = 0;
             iBoteCount = 0;
-            
+
             bKupaFuck = false;
             bAnalKupaFuck = false;
 
@@ -1388,18 +1457,18 @@ namespace CM3D2.AddYotogiSlider.Plugin
                 orgTagFace      = null;
                 orgTagFaceBlend = null;
             }
-          } catch(Exception ex) { Debug.LogError(LogLabel +"finalize() : "+ ex);  return; }
+          } catch(Exception ex) { LogError("finalize() : {0}", ex);  return; }
 
         }
 
         //----
-        
+
         private void syncSlidersOnClickCommand(Yotogi.SkillData.Command.Data.Status cmStatus)
         {
             if (panel["Status"].Enabled && slider["Excite"].Pin)  updateMaidExcite((int)slider["Excite"].Value);
             else slider["Excite"].Value = (float)maid.Param.status.cur_excite;
-            
-            if (panel["Status"].Enabled && slider["Mind"].Pin)    updateMaidMind((int)slider["Mind"].Value); 
+
+            if (panel["Status"].Enabled && slider["Mind"].Pin)    updateMaidMind((int)slider["Mind"].Value);
             else slider["Mind"].Value   = (float)maid.Param.status.cur_mind;
 
             if (panel["Status"].Enabled && slider["Reason"].Pin)  updateMaidReason((int)slider["Reason"].Value);
@@ -1425,33 +1494,33 @@ namespace CM3D2.AddYotogiSlider.Plugin
             {
                 if (bLoadBoneAnimetion)
                 {
-                    if (panel["Status"].Enabled && slider["MotionSpeed"].Pin && !pa["AHE.絶頂.0"].NowPlaying) 
+                    if (panel["Status"].Enabled && slider["MotionSpeed"].Pin && !pa["AHE.絶頂.0"].NowPlaying)
                     {
                         updateMotionSpeed(slider["MotionSpeed"].Value);
                     }
                     else
                     {
-                        foreach (AnimationState stat in anm_BO_body001) 
+                        foreach (AnimationState stat in anm_BO_body001)
                         {
-                            if (stat.enabled) 
+                            if (stat.enabled)
                             {
                                 slider["MotionSpeed"].Value = stat.speed * 100f;
-                                //Debug.Log(stat.name +":"+ stat.speed + ":"+ stat.enabled);
+                                //LogDebug("{0}:{1}:{2}", stat.name, stat.speed, stat.enabled);
                             }
                         }
                     }
                 }
-                
+
                 yield return new WaitForSeconds(waitTime);
             }
         }
 
         private void initAnimeOnCommand()
         {
-            if (panel["AutoAHE"].Enabled) 
+            if (panel["AutoAHE"].Enabled)
             {
                 fAheLastEye = maid.body0.trsEyeL.localPosition.y * fEyePosToSliderMul;
- 
+
                 for (int i=0; i<1; i++)
                 {
                     if (pa["AHE.絶頂."+ i].NowPlaying) pa["AHE.絶頂."+ i].Stop();
@@ -1471,23 +1540,23 @@ namespace CM3D2.AddYotogiSlider.Plugin
                 }
             }
 
-            if (panel["AutoBOTE"].Enabled) 
+            if (panel["AutoBOTE"].Enabled)
             {
                 // アニメ再生中にコマンド実行で強制的に終端値に
-                if (pa["BOTE.絶頂"].NowPlaying) 
+                if (pa["BOTE.絶頂"].NowPlaying)
                 {
                     updateMaidHaraValue(Mathf.Min(iDefHara + iHaraIncrement * iBoteCount, iBoteHaraMax));
                 }
-                if (pa["BOTE.止める"].NowPlaying) 
+                if (pa["BOTE.止める"].NowPlaying)
                 {
                     updateMaidHaraValue(iDefHara);
                 }
-                
+
                 pa["BOTE.絶頂"].Stop();
                 pa["BOTE.止める"].Stop();
             }
 
-            if (panel["AutoKUPA"].Enabled) 
+            if (panel["AutoKUPA"].Enabled)
             {
                 if (pa["KUPA.止める"].NowPlaying) updateShapeKeyKupaValue(iKupaMin);
                 pa["KUPA.止める"].Stop();
@@ -1500,24 +1569,26 @@ namespace CM3D2.AddYotogiSlider.Plugin
 
         private void playAnimeOnCommand(Yotogi.SkillData.Command.Data.Basic data)
         {
-            if (panel["AutoAHE"].Enabled) 
+            LogDebug("Skill:{0} Command:{1} Type:{2}", data.group_name, data.name, data.command_type);
+
+            if (panel["AutoAHE"].Enabled)
             {
                 float excite = maid.Param.status.cur_excite;
                 int i = idxAheOrgasm;
-                
+
                 if (data.command_type == Yotogi.SkillCommandType.絶頂)
                 {
                     if (iLastExcite >= iAheExcite[i])
                     {
                         pa["AHE.継続.0"].Play(fAheLastEye ,fAheOrgasmEyeMax[i]);
-                        
+
                         float[] xFrom = { fAheOrgasmEyeMax[i], fAheOrgasmSpeed[i] };
                         float[] xTo   = { fAheOrgasmEyeMin[i], 100f };
-                        
+
                         updateMotionSpeed(fAheOrgasmSpeed[i]);
                         pa["AHE.絶頂.0"].Play(xFrom, xTo);
 
-                        if (toggle["Convulsion"].Value) 
+                        if (toggle["Convulsion"].Value)
                         {
                             if (pa["AHE.痙攣."+ i].NowPlaying) iAheOrgasmChain++;
                             pa["AHE.痙攣."+ i].Play(0f, fAheOrgasmConvulsion[i]);
@@ -1537,10 +1608,10 @@ namespace CM3D2.AddYotogiSlider.Plugin
             }
 
 
-            if (panel["AutoBOTE"].Enabled) 
+            if (panel["AutoBOTE"].Enabled)
             {
                 float from = (float)maid.GetProp("Hara").value;
-                
+
                 if (data.command_type == Yotogi.SkillCommandType.絶頂)
                 {
                     if (data.name.Contains("中出し") || data.name.Contains("注ぎ込む"))
@@ -1563,71 +1634,42 @@ namespace CM3D2.AddYotogiSlider.Plugin
             }
 
 
-            if (panel["AutoKUPA"].Enabled) 
+            if (panel["AutoKUPA"].Enabled)
             {
-                if (data.command_type == Yotogi.SkillCommandType.挿入 && !data.name.Contains("口を責める"))
+                float from = slider["Kupa"].Value;
+                int i = (int)checkCommandKupaLevel(data);
+                if (i >= 0)
                 {
-                    if (!bKupaFuck)
-                    {
-                        int i = checkGroupKupa(data.group_name);
-                        if (i >= 0) 
-                        {
-                            //Debug.Log(iKupaDef +":"+ iKupaIncrementPerOrgasm  +":"+ iOrgasmCount +"="+ iKupaMin);
-                            pa["KUPA.挿入."+ i].Play(iKupaMin, iKupaValue[i]);
-                            bKupaFuck = true;
-                        }
-                    }
+                    if (from < iKupaValue[i])
+                        pa["KUPA.挿入."+ i].Play(from, iKupaValue[i]);
+                    bKupaFuck = true;
                 }
-                else if (data.command_type == Yotogi.SkillCommandType.止める || data.name.Contains("口を責める"))
+                else if (bKupaFuck && checkCommandKupaStop(data))
                 {
-                    //Debug.Log(iKupaDef +":"+ iKupaIncrementPerOrgasm  +":"+ iOrgasmCount +"="+ iKupaMin);
-                    pa["KUPA.止める"].Play(slider["Kupa"].Value, iKupaMin);
+                    pa["KUPA.止める"].Play(from, iKupaMin);
                     bKupaFuck = false;
                 }
-                else if (data.command_type == Yotogi.SkillCommandType.絶頂)
-                {
-                    if (data.group_name.Contains("愛撫") || data.name.Contains("外出し"))
-                    {
-                        //Debug.Log(iKupaDef +":"+ iKupaIncrementPerOrgasm  +":"+ iOrgasmCount +"="+ iKupaMin);
-                        pa["KUPA.止める"].Play(slider["Kupa"].Value, iKupaMin);
-                        bKupaFuck = false;
-                    }
-                }
 
-                if (data.command_type == Yotogi.SkillCommandType.挿入 && !data.name.Contains("口を責める"))
+                from = slider["AnalKupa"].Value;
+                i = (int)checkCommandAnalKupaLevel(data);
+                if (i >= 0)
                 {
-                    if (!bAnalKupaFuck)
-                    {
-                        int i = checkGroupAnalKupa(data.group_name);
-                        if (i >= 0) 
-                        {
-                            //Debug.Log(iAnalKupaDef +":"+ iAnalKupaIncrementPerOrgasm  +":"+ iOrgasmCount +"="+ iAnalKupaMin);
-                            pa["AKPA.挿入."+ i].Play(iAnalKupaMin, iAnalKupaValue[i]);
-                            bAnalKupaFuck = true;
-                        }
-                    }
+                    if (from < iAnalKupaValue[i])
+                        pa["AKPA.挿入."+ i].Play(from, iAnalKupaValue[i]);
+                    bAnalKupaFuck = true;
                 }
-                else if (data.command_type == Yotogi.SkillCommandType.止める || data.name.Contains("口を責める"))
+                else if (bAnalKupaFuck && checkCommandAnalKupaStop(data))
                 {
-                    //Debug.Log(iAnalKupaDef +":"+ iAnalKupaIncrementPerOrgasm  +":"+ iOrgasmCount +"="+ iAnalKupaMin);
-                    pa["AKPA.止める"].Play(slider["AnalKupa"].Value, iAnalKupaMin);
+                    pa["AKPA.止める"].Play(from, iAnalKupaMin);
                     bAnalKupaFuck = false;
-                }
-                else if (data.command_type == Yotogi.SkillCommandType.絶頂)
-                {
-                    if (data.group_name.Contains("愛撫") || data.name.Contains("外出し"))
-                    {
-                        //Debug.Log(iAnalKupaDef +":"+ iAnalKupaIncrementPerOrgasm  +":"+ iOrgasmCount +"="+ iAnalKupaMin);
-                        pa["AKPA.止める"].Play(slider["AnalKupa"].Value, iAnalKupaMin);
-                        bAnalKupaFuck = false;
-                    }
                 }
             }
         }
 
+
         private void playAnimeOnInputKeyDown(KeyCode keycode)
         {
-            if (keycode == KeyCode.F5)
+            if (keycode == ToggleWindowKey)
             {
                 if (visible)
                 {
@@ -1645,19 +1687,19 @@ namespace CM3D2.AddYotogiSlider.Plugin
 
         private void updateAnimeOnUpdate()
         {
-            if (panel["AutoAHE"].Enabled) 
+            if (panel["AutoAHE"].Enabled)
             {
                 if (pa["AHE.継続.0"].NowPlaying) pa["AHE.継続.0"].Update();
-                
-                if (pa["AHE.絶頂.0"].NowPlaying) 
+
+                if (pa["AHE.絶頂.0"].NowPlaying)
                 {
                     pa["AHE.絶頂.0"].Update();
                     maid.FaceBlend(sAheOrgasmFaceBlend[idxAheOrgasm]);
                     panel["FaceBlend"].HeaderUILabelText = sAheOrgasmFaceBlend[idxAheOrgasm];
                 }
-    
+
                 for (int i=0; i<3; i++) if (pa["AHE.痙攣."+ i].NowPlaying) pa["AHE.痙攣."+ i].Update();
-                
+
 
                 // 放置中の瞳自然降下
                 if (!pa["AHE.継続.0"].NowPlaying && !pa["AHE.絶頂.0"].NowPlaying)
@@ -1666,18 +1708,18 @@ namespace CM3D2.AddYotogiSlider.Plugin
                     if (eyepos > fAheDefEye) updateMaidEyePosY(eyepos - fAheEyeDecrement * (int)(fPassedTimeOnCommand / 10));
                 }
             }
-            
+
             if (panel["AutoBOTE"].Enabled)
             {
                 if (pa["BOTE.絶頂"].NowPlaying)   pa["BOTE.絶頂"].Update();
                 if (pa["BOTE.止める"].NowPlaying) pa["BOTE.止める"].Update();
             }
-            
-            if (panel["AutoKUPA"].Enabled) 
+
+            if (panel["AutoKUPA"].Enabled)
             {
                 bool updated = false;
                 string[] names = {
-                    "KUPA.挿入.0", "KUPA.挿入.1", "KUPA.止める", 
+                    "KUPA.挿入.0", "KUPA.挿入.1", "KUPA.止める",
                     "AKPA.挿入.0", "AKPA.挿入.1", "AKPA.止める",
                 };
                 foreach (var name in names)
@@ -1723,10 +1765,10 @@ namespace CM3D2.AddYotogiSlider.Plugin
             }
         }
 
-        private void updateAnimeOnGUI() 
+        private void updateAnimeOnGUI()
         {
-            if (pa["WIN.Load"].NowPlaying) 
-            { 
+            if (pa["WIN.Load"].NowPlaying)
+            {
                 pa["WIN.Load"].Update();
             }
         }
@@ -1744,7 +1786,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
         {
             winAnimeRect.x = x[0];
             GUI.color = new Color(GUI.color.r, GUI.color.g, GUI.color.b, x[1]);
-            
+
             GUIStyle winStyle = "box";
             winStyle.fontSize = PV.Font("C1");
             winStyle.alignment = TextAnchor.UpperRight;
@@ -1793,8 +1835,8 @@ namespace CM3D2.AddYotogiSlider.Plugin
             try {
             maid.SetProp("Hara", (int)value, false);
             maid.body0.VertexMorph_FromProcItem("hara", value/100f);
-            } catch { /*Debug.LogError(LogLabel + ex);*/ }
-            
+            } catch { /*LogError(ex);*/ }
+
             updateSlider("Slider:Hara", value);
         }
 
@@ -1803,13 +1845,13 @@ namespace CM3D2.AddYotogiSlider.Plugin
             maidFoceKuchipakuSelfUpdateTime.SetValue(maid, b);
         }
 
-        
+
         private void updateShapeKeyKupaValue(float value)
         {
             try {
             maid.body0.VertexMorph_FromProcItem("kupa", value/100f);
-            } catch { /*Debug.LogError(LogLabel + ex);*/ }
-            
+            } catch { /*LogError(ex);*/ }
+
             updateSlider("Slider:Kupa", value);
         }
 
@@ -1817,7 +1859,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
         {
             try {
             maid.body0.VertexMorph_FromProcItem("analkupa", value/100f);
-            } catch { /*Debug.LogError(LogLabel + ex);*/ }
+            } catch { /*LogError(ex);*/ }
 
             updateSlider("Slider:AnalKupa", value);
         }
@@ -1826,9 +1868,9 @@ namespace CM3D2.AddYotogiSlider.Plugin
         {
             try {
             maid.body0.VertexMorph_FromProcItem("orgasm", value/100f);
-            } catch { /*Debug.LogError(LogLabel + ex);*/ }
-            
-            //Debug.LogWarning(value);
+            } catch { /*LogError(ex);*/ }
+
+            //LogWarning(value);
         }
 
         private void updateOrgasmConvulsion(float value)
@@ -1840,7 +1882,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
         private void updateMotionSpeed(float value)
         {
             foreach (AnimationState stat in anm_BO_body001) if (stat.enabled) stat.speed = value/100f;
-            foreach (Animation anm in anm_BO_mbody) 
+            foreach (Animation anm in anm_BO_mbody)
             {
                 foreach (AnimationState stat in anm)  if (stat.enabled) stat.speed = value/100f;
             }
@@ -1875,7 +1917,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
         {
             return (int)(slider["Sensitivity"].Value - maid.Param.status.correction_data.excite + (maid.Param.status.cur_reason < 20 ? 20 : 0));
         }
-        
+
         private IEnumerator getBoneAnimetionCoroutine(float waitTime)
         {
             yield return new WaitForSeconds(waitTime);
@@ -1893,59 +1935,151 @@ namespace CM3D2.AddYotogiSlider.Plugin
                 go_BO_mbody.Add(go);
                 i++;
             }
-                
+
             this.anm_BO_mbody = new Animation[i];
             for (int j=0; j<i; j++) anm_BO_mbody[j] = go_BO_mbody[j].GetComponent<Animation>();
-            
+
             bLoadBoneAnimetion = true;
-            //Debug.Log(LogLabel +"BoneAnimetion : "+ i);
+            //LogDebug("BoneAnimetion : {0}", i);
         }
 
-        private int checkGroupKupa(string s)
+        private KupaLevel checkSkillKupaLevel(Yotogi.SkillData sd)
         {
-            if (!s.Contains("アナル")) 
-            {
-                string[] t0 = { "セックス", "太バイブ", "正常位", "後背位", "騎乗位" };
-                if (t0.Any(t => s.Contains(t))) return 0;
+            if (sd.name.StartsWith("バイブ責めアナルセックス")) return KupaLevel.Vibe;
+            if (sd.name.StartsWith("露出プレイ")) return KupaLevel.Vibe;
+            if (sd.name.StartsWith("犬プレイ")) return KupaLevel.Vibe;
+            return KupaLevel.None;
+        }
 
-                string[] t1 = { "愛撫", "オナニー", "バイブ", "シックスナイン", "ポーズ維持プレイ" };
-                if (t1.Any(t => s.Contains(t))) return 1;
+        private KupaLevel checkSkillAnalKupaLevel(Yotogi.SkillData sd)
+        {
+            if (sd.name.StartsWith("アナルバイブ責めセックス")) return KupaLevel.Vibe;
+            return KupaLevel.None;
+        }
+
+        private KupaLevel checkCommandKupaLevel(Yotogi.SkillData.Command.Data.Basic cmd)
+        {
+            if (cmd.command_type == Yotogi.SkillCommandType.挿入)
+            {
+                if (!cmd.group_name.Contains("アナル"))
+                {
+                    string[] t0 = { "セックス", "太バイブ", "正常位", "後背位", "騎乗位" };
+                    if (t0.Any(t => cmd.group_name.Contains(t))) return KupaLevel.Sex;
+
+                    string[] t1 = { "愛撫", "オナニー", "バイブ", "シックスナイン",
+                                    "ポーズ維持プレイ", "磔プレイ" };
+                    if (t1.Any(t => cmd.group_name.Contains(t))) return KupaLevel.Vibe;
+                }
+                else
+                {
+                    if (cmd.group_name.Contains("アナルバイブ責めセックス")) return KupaLevel.Sex;
+                }
+            }
+            else if (cmd.group_name.Contains("三角木馬"))
+            {
+                if (cmd.name.Contains("肩を押す")) return KupaLevel.Vibe;
+            }
+            else if (cmd.group_name.Contains("まんぐり"))
+            {
+                if (cmd.name.Contains("愛撫") || cmd.name.Contains("クンニ")) return KupaLevel.Vibe;
+            }
+            if (!cmd.group_name.Contains("アナル"))
+            {
+                if (cmd.name.Contains("指を増やして")) return KupaLevel.Sex;
+                if (cmd.group_name.Contains("バイブ") || cmd.group_name.Contains("オナニー"))
+                {
+                    // 口責めなどから直接「イカせる」を選択した場合
+                    if (cmd.name == "イカせる") return KupaLevel.Vibe;
+                }
+            }
+            return KupaLevel.None;
+        }
+
+        private KupaLevel checkCommandAnalKupaLevel(Yotogi.SkillData.Command.Data.Basic cmd)
+        {
+            if (cmd.group_name.StartsWith("アナルバイブ責めセックス")) return KupaLevel.None;
+            if (cmd.command_type == Yotogi.SkillCommandType.挿入)
+            {
+                string[] t0 = { "アナルセックス", "アナル正常位", "アナル後背位", "アナル騎乗位",
+                                "2穴", "4P", "アナル処女喪失" };
+                if (t0.Any(t => cmd.group_name.Contains(t))) return KupaLevel.Sex;
+
+                string[] t1 = { "アナルバイブ", "アナルオナニー" };
+                if (t1.Any(t => cmd.group_name.Contains(t))) return KupaLevel.Vibe;
+            }
+            if (cmd.group_name.Contains("アナルバイブ"))
+            {
+                if (cmd.name == "イカせる") return KupaLevel.Vibe;
+            }
+            return KupaLevel.None;
+        }
+
+        private bool checkCommandKupaStop(Yotogi.SkillData.Command.Data.Basic cmd)
+        {
+            if (cmd.group_name == "まんぐり返しアナルセックス")
+            {
+                if (cmd.name.Contains("責める")) return true;
+            }
+            // if (cmd.name.Contains("絶頂焦らし")) return true; // TODO: アニメーションタイミング変更
+            return checkCommandAnyKupaStop(cmd);
+        }
+
+        private bool checkCommandAnalKupaStop(Yotogi.SkillData.Command.Data.Basic cmd)
+        {
+            if (cmd.command_type == Yotogi.SkillCommandType.絶頂)
+            {
+                if (cmd.group_name.Contains("オナニー")) return true;
+            }
+            return checkCommandAnyKupaStop(cmd);
+        }
+
+        private bool checkCommandAnyKupaStop(Yotogi.SkillData.Command.Data.Basic cmd)
+        {
+            if (cmd.command_type == Yotogi.SkillCommandType.止める) return true;
+            if (cmd.command_type == Yotogi.SkillCommandType.絶頂)
+            {
+                if (cmd.group_name.Contains("愛撫")) return true;
+                if (cmd.group_name.Contains("まんぐり")) return true; // TODO: アニメーションタイミング変更
+                if (cmd.group_name.Contains("シックスナイン")) return true;
+                if (cmd.name.Contains("外出し")) return true;
             }
             else
             {
-                if (s.Contains("バイブ責めアナルセックス")) return 1;
-                if (s.Contains("アナルバイブ責めセックス")) return 0;
+                if (cmd.name.Contains("頭を撫でる")) return true;
+                if (cmd.name.Contains("口を責める")) return true;
+                if (cmd.name.Contains("クリトリスを責めさせる")) return true;
+                if (cmd.name.Contains("バイブを舐めさせる")) return true;
+                if (cmd.name.Contains("擦りつける")) return true;
+                if (cmd.name.Contains("放尿させる")) return true;
             }
-            return -1;
-        }
-
-        private int checkGroupAnalKupa(string s)
-        {
-            string[] t0 = { "アナルセックス", "アナル正常位", "アナル後背位", "アナル騎乗位", "2穴", "4P", "アナル処女喪失" };
-            if (t0.Any(t => s.Contains(t))) return 0;
-
-            string[] t1 = { "アナルバイブ", "アナルオナニー" };
-            if (t1.Any(t => s.Contains(t))) return 1;
-
-            return -1;
+            return false;
         }
 
         private T parseExIni<T>(string section, string key, T def)
         {
+            T res = def;
             string str = parseExIniRaw(section, key, null);
             if (str != null)
             {
                 var converter = System.ComponentModel.TypeDescriptor.GetConverter(typeof(T));
-                if (converter != null)
+                if (converter == null)
+                {
+                    LogError("Ini: Invalid type: [{0}] {1} ({2})", section, key, typeof(T));
+                }
+                else
                 {
                     try
                     {
-                        return (T)converter.ConvertFromString(str);
+                        res = (T)converter.ConvertFromString(str);
                     }
-                    catch (NotSupportedException) { /* nothing */ }
+                    catch (Exception ex)
+                    {
+                        LogWarning("Ini: Convert failed: [{0}] {1}='{2}' ({3})", section, key, str, ex);
+                    }
                 }
             }
-            return def;
+            LogDebug("Ini: [{0}] {1}='{2}'", section, key, res);
+            return res;
         }
 
         private string parseExIniRaw(string section, string key, string def)
@@ -1954,13 +2088,9 @@ namespace CM3D2.AddYotogiSlider.Plugin
             {
                 if (Preferences[section].HasKey(key))
                 {
-                    //Debug.Log(section + ":"+ key + ":"+ Preferences[section][key].Value);
                     return Preferences[section][key].Value;
-                    
                 }
             }
-            
-            //Debug.Log(section + ":"+ key + ":default");
             return def;
         }
 
@@ -1977,6 +2107,26 @@ namespace CM3D2.AddYotogiSlider.Plugin
             }
         }
 
+        [System.Diagnostics.Conditional("DEBUG")]
+        private static void LogDebug(string msg, params object[] args)
+        {
+            Debug.Log(LogLabel + string.Format(msg, args));
+        }
+
+        private static void LogWarning(string msg, params object[] args)
+        {
+            Debug.LogWarning(LogLabel + string.Format(msg, args));
+        }
+
+        private static void LogError(string msg, params object[] args)
+        {
+            Debug.LogError(LogLabel + string.Format(msg, args));
+        }
+
+        private static void LogError(object ex)
+        {
+            LogError("{0}", ex);
+        }
 
         #endregion
 
@@ -1987,25 +2137,25 @@ namespace CM3D2.AddYotogiSlider.Plugin
 
         internal static IEnumerator CheckFadeStatus(WfScreenChildren wsc, float waitTime)
         {
-            while(true) 
+            while(true)
             {
-                Debug.Log(wsc.fade_status.ToString());
+                LogDebug(wsc.fade_status.ToString());
                 yield return new WaitForSeconds(waitTime);
             }
         }
-        
+
         internal static string GetFullPath(GameObject go)
         {
             string s = go.name;
             if (go.transform.parent != null) s = GetFullPath(go.transform.parent.gameObject) + "/" + s;
-            
+
             return s;
         }
 
         internal static void WriteComponent(GameObject go)
         {
             Component[] compos = go.GetComponents<Component>();
-            foreach(Component c in compos){ Debug.Log(go.name +":"+ c.GetType().Name); }
+            foreach(Component c in compos){ LogDebug("{0}:{1}", go.name, c.GetType().Name); }
         }
 
         internal static void WriteTrans(string s)
@@ -2020,7 +2170,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
         {
             if (level == 0) writer = new StreamWriter(@".\"+ t.name +@".txt", false);
             if (writer == null) return;
-            
+
             string s = "";
             for(int i=0; i<level; i++) s+="    ";
             writer.WriteLine(s + level +","+t.name);
@@ -2041,7 +2191,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
         {
             if(t == null)
             {
-                Debug.LogError(s);
+                LogError(s);
                 return true;
             }
             else return false;
@@ -2080,7 +2230,6 @@ namespace CM3D2.AddYotogiSlider.Plugin
         }
 
         #endregion
-        
     }
 
 }
@@ -2100,20 +2249,20 @@ namespace UnityObsoleteGui
         protected bool   visible;
 
         public string Name      { get{ return name; } }
-        
+
         public virtual Rect   Rectangle { get{ return rect; } }
         public virtual float  Left      { get{ return rect.x; } }
         public virtual float  Top       { get{ return rect.y; } }
         public virtual float  Width     { get{ return rect.width; } }
         public virtual float  Height    { get{ return rect.height; } }
-        public virtual bool Visible 
-        { 
-            get{ return visible; } 
+        public virtual bool Visible
+        {
+            get{ return visible; }
             set
-            { 
-                visible = value; 
-                if (Parent != null) notifyParent(false, true); 
-            } 
+            {
+                visible = value;
+                if (Parent != null) notifyParent(false, true);
+            }
         }
 
         public Container Parent = null;
@@ -2124,7 +2273,7 @@ namespace UnityObsoleteGui
         public Element(string name, Rect rect)
         {
             this.id      = this.GetHashCode();
-            this.name    = name; 
+            this.name    = name;
             this.rect    = rect;
             this.visible = true;
         }
@@ -2136,7 +2285,7 @@ namespace UnityObsoleteGui
 
         public virtual int CompareTo(Element e) { return this.name.CompareTo(e.Name); }
 
-        protected virtual void notifyParent(bool sizeChanged, bool visibleChanged) 
+        protected virtual void notifyParent(bool sizeChanged, bool visibleChanged)
         {
             NotifyParent(this, new ElementEventArgs(name, sizeChanged, visibleChanged));
         }
@@ -2153,7 +2302,7 @@ namespace UnityObsoleteGui
             foreach (Element e in parent)
             {
                 if (e is T && e.Name == s) return e as T;
-                if (e is Container) 
+                if (e is Container)
                 {
                     T e2 = Find<T>(e as Container, s);
                     if (e2 != null) return e2 as T;
@@ -2164,7 +2313,7 @@ namespace UnityObsoleteGui
         }
 
         //----
-        
+
         protected List<Element> children = new List<Element>();
 
         public int ChildCount { get{ return children.Count; } }
@@ -2187,10 +2336,10 @@ namespace UnityObsoleteGui
                 child.NotifyParent += this.onChildChenged;
                 children.Add(child);
                 Resize();
-                
+
                 return child;
             }
-            
+
             return null;
         }
 
@@ -2204,7 +2353,7 @@ namespace UnityObsoleteGui
         public void RemoveChild(string s)
         {
             Element child = children.FirstOrDefault(e => e.Name == s);
-            if (child != null) 
+            if (child != null)
             {
                 child.Parent = null;
                 child.NotifyParent -= this.onChildChenged;
@@ -2212,7 +2361,7 @@ namespace UnityObsoleteGui
                 Resize();
             }
         }
-        
+
         public void RemoveChildren()
         {
             foreach (Element child in children)
@@ -2223,14 +2372,14 @@ namespace UnityObsoleteGui
             children.Clear();
             Resize();
         }
-        
+
         public virtual void onChildChenged(object sender, EventArgs e) { Resize(); }
 
         IEnumerator IEnumerable.GetEnumerator()     { return this.GetEnumerator(); }
         public IEnumerator<Element> GetEnumerator() { return children.GetEnumerator(); }
 
     }
-    
+
 
     public class Window : Container
     {
@@ -2254,7 +2403,7 @@ namespace UnityObsoleteGui
 
         private class HorizontalSpacer : Element
         {
-            public HorizontalSpacer(float height) 
+            public HorizontalSpacer(float height)
             : base("Spacer:", new Rect(Window.AutoLayout, Window.AutoLayout, Window.AutoLayout, height) )
             {
                 this.name += this.id;
@@ -2301,10 +2450,10 @@ namespace UnityObsoleteGui
             this.TitleText  = title;
             this.TitleHeight= PV.Line("C1");
 
-            if (children != null && children.Count > 0) 
+            if (children != null && children.Count > 0)
             {
                 this.children = new List<Element>(children);
-                foreach (Element child in children) 
+                foreach (Element child in children)
                 {
                     child.Parent = this;
                     child.NotifyParent += this.onChildChenged;
@@ -2312,7 +2461,7 @@ namespace UnityObsoleteGui
                 }
                 Resize();
             }
-            
+
             lastScreenSize = new Vector2(Screen.width, Screen.height);
         }
 
@@ -2340,7 +2489,7 @@ namespace UnityObsoleteGui
         public Element AddHorizontalSpacer(float height) { return AddChild( new HorizontalSpacer(height) ); }
 
         //----
-        
+
         private void drawWindow(int id)
         {
             TitleHeight    = PV.Line("C1");
@@ -2349,11 +2498,11 @@ namespace UnityObsoleteGui
             LabelStyle.fontSize = TitleFontSize;
             LabelStyle.alignment = TextAnchor.UpperLeft;
             GUI.Label(titleRect, TitleText, LabelStyle);
-            
+
             GUI.BeginGroup(contentRect);
             {
                 Rect cur = new Rect(0f, 0f, 0f, 0f);
-                
+
                 foreach (Element child in children)
                 {
                     if (!child.Visible) continue;
@@ -2377,7 +2526,7 @@ namespace UnityObsoleteGui
                 }
             }
             GUI.EndGroup();
-            
+
             GUI.DragWindow();
         }
 
@@ -2393,7 +2542,7 @@ namespace UnityObsoleteGui
             }
             return false;
         }
-        
+
         private void calcRectSize()
         {
             baseRect    = PV.InsideRect(rect);
@@ -2405,11 +2554,11 @@ namespace UnityObsoleteGui
         {
             Vector2 used  = Vector2.zero;
             Vector2 count = Vector2.zero;
-            
+
             foreach (Element child in children)
             {
                 if (!child.Visible) continue;
-                
+
                 if (!(child.Left > 0 || child.Top > 0) && child.Width > 0)  used.x += child.Width;
                 else count.x += 1;
 
@@ -2437,18 +2586,18 @@ namespace UnityObsoleteGui
                         rectChanged = true;
                     }
                 }
-            
+
                 if (rectChanged) calcRectSize();
             }
 
             autoSize.x = (count.x > 0) ? (contentRect.width  - used.x) / colums : contentRect.width;
             autoSize.y = (count.y > 0) ? (contentRect.height - used.y) / (float)Math.Ceiling(count.y/colums) : contentRect.height;
         }
-        
-        private void resizeAllChildren(Container parent) 
+
+        private void resizeAllChildren(Container parent)
         {
             if (parent == null) return;
-            
+
             foreach(Element child in parent)
             {
                 if (child is Container) resizeAllChildren(child as Container);
@@ -2483,7 +2632,7 @@ namespace UnityObsoleteGui
         {
             onChange( GUI.HorizontalSlider(outRect, Value, Min, Max, Style, ThumbStyle) );
         }
-        
+
         private void onChange(float newValue)
         {
             if (newValue != Value)
@@ -2519,7 +2668,7 @@ namespace UnityObsoleteGui
         {
             onChange( GUI.Toggle(outRect, Value, Content, Style) );
         }
-        
+
         private void onChange(bool newValue)
         {
             if (newValue != val) OnChange(this, new ToggleEventArgs(name, newValue));
@@ -2534,9 +2683,9 @@ namespace UnityObsoleteGui
 
         public int    SelectedIndex { get{ return selected; } }
         public string Value         { get{ return buttonNames[selected]; } }
-        
+
         public event EventHandler<SelectEventArgs> OnSelect;
-            
+
         public SelectButton(string name, Rect rect, string[] buttonNames, EventHandler<SelectEventArgs> _onSelect) : base(name, rect)
         {
             this.buttonNames = buttonNames;
@@ -2564,7 +2713,7 @@ namespace UnityObsoleteGui
         public string Name;
         public bool   SizeChanged;
         public bool   VisibleChanged;
-        
+
         public ElementEventArgs(string name, bool sizeChanged, bool visibleChanged)
         {
             this.Name           = name;
@@ -2577,19 +2726,19 @@ namespace UnityObsoleteGui
     {
         public string Name;
         public float  Value;
-        
+
         public SliderEventArgs(string name, float value)
         {
             this.Name  = name;
             this.Value = value;
         }
     }
-    
+
     public class ButtonEventArgs : EventArgs
-    { 
+    {
         public string Name;
         public string ButtonName;
-        
+
         public ButtonEventArgs(string name, string buttonName)
         {
             this.Name       = name;
@@ -2598,10 +2747,10 @@ namespace UnityObsoleteGui
     }
 
     public class ToggleEventArgs : EventArgs
-    { 
+    {
         public string Name;
         public bool   Value;
-        
+
         public ToggleEventArgs(string name, bool b)
         {
             this.Name  = name;
@@ -2610,11 +2759,11 @@ namespace UnityObsoleteGui
     }
 
     public class SelectEventArgs : EventArgs
-    { 
+    {
         public string Name;
         public int    Index;
         public string ButtonName;
-        
+
         public SelectEventArgs(string name, int idx, string buttonName)
         {
             this.Name       = name;
@@ -2663,7 +2812,7 @@ namespace UnityObsoleteGui
 
             sys["HScrollBar.Width"] = 15;
         }
-            
+
         public static int Font(string key)  { return PropPx(font[key]); }
         public static int Line(string key)  { return PropPx(line[key]); }
         public static int Sys(string key)   { return PropPx(sys[key]); }
@@ -2697,27 +2846,27 @@ namespace UnityObsoleteGui
             return r;
         }
 
-        public static Rect InsideRect(Rect rect) 
+        public static Rect InsideRect(Rect rect)
         {
             return new Rect(Margin, Margin, rect.width - Margin * 2, rect.height - Margin * 2);
         }
 
-        public static Rect InsideRect(Rect rect, int height) 
+        public static Rect InsideRect(Rect rect, int height)
         {
             return new Rect(Margin, Margin, rect.width - Margin * 2, height);
         }
 
-        public static Rect InsideRect(Rect rect, Rect padding) 
+        public static Rect InsideRect(Rect rect, Rect padding)
         {
             return new Rect(rect.x + padding.x, rect.y + padding.x, rect.width - padding.width * 2, rect.height - padding.height * 2);
         }
 
-        public static int PropPx(int px) 
+        public static int PropPx(int px)
         {
             return (int)(px * (1f + (Screen.width/BaseWidth - 1f) * PropRatio));
         }
 
-        public static Rect PropRect(int px) 
+        public static Rect PropRect(int px)
         {
             return new Rect(PropPx(px), PropPx(px), PropPx(px), PropPx(px));
         }
