@@ -71,8 +71,11 @@ namespace CM3D2.AddYotogiSlider.Plugin
         private bool  kagScriptCallbacksOverride = false;
 
         private string[] sKey =  { "WIN", "STATUS", "AHE", "BOTE", "FACEBLEND", "FACEANIME"};
-        private string[] sliderName = {"興奮", "精神", "理性", "感度", "速度", "瞳Y", "腹", "前", "後"};
-        private List<string> sStageNames = new List<string>();
+        private string[] sliderName = {"興奮", "精神", "理性", "感度", "速度"};
+		private string[] sliderNameAutoAHE = {"瞳Y"};
+		private string[] sliderNameAutoBOTE = {"腹"};
+		private string[] sliderNameAutoKUPA = {"前", "後", "陰唇", "すじ", "クリ"};
+		private List<string> sStageNames = new List<string>();
         private Dictionary<string, PlayAnime> pa = new Dictionary<string, PlayAnime>();
 
         private Window   window;
@@ -158,7 +161,14 @@ namespace CM3D2.AddYotogiSlider.Plugin
         private int   iAnalKupaWaitingValue       = 5;           //待機モーションでのアナル開き値幅
         private float fPassedTimeOnAutoAnalKupaWaiting = 0;
 
-        //FaceNames
+		private bool  bLabiaKupaAvailable = false;
+		private bool  bSujiAvailable = false;
+		private bool  bClitorisAvailable = false;
+		private int   iLabiaKupaMin = 0;
+		private int   iSujiMin = 0;
+		private int   iClitorisMin = 0;
+
+		//FaceNames
         private string[] sFaceNames =
         {
         "エロ通常１", "エロ通常２", "エロ通常３", "エロ羞恥１", "エロ羞恥２", "エロ羞恥３",
@@ -1060,7 +1070,22 @@ namespace CM3D2.AddYotogiSlider.Plugin
             updateShapeKeyAnalKupaValue(args.Value);
         }
 
-        public void OnChangeToggleLipsync(object tgl, ToggleEventArgs args)
+		public void OnChangeSliderLabiaKupa(object ys, SliderEventArgs args)
+		{
+			updateShapeKeyLabiaKupaValue(args.Value);
+		}
+
+		public void OnChangeSliderSuji(object ys, SliderEventArgs args)
+		{
+			updateShapeKeySujiValue(args.Value);
+		}
+		
+		public void OnChangeSliderClitoris(object ys, SliderEventArgs args)
+		{
+			updateShapeKeyClitorisValue(args.Value);
+		}
+		
+		public void OnChangeToggleLipsync(object tgl, ToggleEventArgs args)
         {
             updateMaidFoceKuchipakuSelfUpdateTime(args.Value);
         }
@@ -1211,6 +1236,9 @@ namespace CM3D2.AddYotogiSlider.Plugin
             bKupaAvailable   = maid.body0.goSlot[0].morph.hash.ContainsKey("kupa");
             bOrgasmAvailable = maid.body0.goSlot[0].morph.hash.ContainsKey("orgasm");
             bAnalKupaAvailable = maid.body0.goSlot[0].morph.hash.ContainsKey("analkupa");
+			bLabiaKupaAvailable = maid.body0.goSlot[0].morph.hash.ContainsKey("labiakupa");
+			bSujiAvailable = maid.body0.goSlot[0].morph.hash.ContainsKey("suji");
+			bClitorisAvailable = maid.body0.goSlot[0].morph.hash.ContainsKey("clitoris");
 
             // Window
             {
@@ -1226,10 +1254,14 @@ namespace CM3D2.AddYotogiSlider.Plugin
                 slider["Reason"]      = new YotogiSlider("Slider:Reason",       0f,    reason, reason,          this.OnChangeSliderReason,      sliderName[2], true);
                 slider["Sensitivity"] = new YotogiSlider("Slider:Sensitivity",  -100f, 200f,   sensitivity,     this.OnChangeSliderSensitivity, sliderName[3], true);
                 slider["MotionSpeed"] = new YotogiSlider("Slider:MotionSpeed",  0f,    500f,   100f,            this.OnChangeSliderMotionSpeed, sliderName[4], true);
-                slider["EyeY"]        = new YotogiSlider("Slider:EyeY",         0f,    100f,   fAheDefEye,      this.OnChangeSliderEyeY,        sliderName[5], false);
-                slider["Hara"]        = new YotogiSlider("Slider:Hara",         0f,    150f,   (float)iDefHara, this.OnChangeSliderHara,        sliderName[6], false);
-                slider["Kupa"]        = new YotogiSlider("Slider:Kupa",         0f,    150f,   0f,              this.OnChangeSliderKupa,        sliderName[7], false);
-                slider["AnalKupa"]    = new YotogiSlider("Slider:AnalKupa",     0f,    150f,   0f,              this.OnChangeSliderAnalKupa,    sliderName[8], false);
+				slider["EyeY"]        = new YotogiSlider("Slider:EyeY",         0f,    100f,   fAheDefEye,      this.OnChangeSliderEyeY,        sliderNameAutoAHE[0], false);
+				slider["Hara"]        = new YotogiSlider("Slider:Hara",         0f,    150f,   (float)iDefHara, this.OnChangeSliderHara,        sliderNameAutoBOTE[0], false);
+
+				slider["Kupa"]        = new YotogiSlider("Slider:Kupa",         0f,    150f,   0f,              this.OnChangeSliderKupa,        sliderNameAutoKUPA[0], false);
+				slider["AnalKupa"]    = new YotogiSlider("Slider:AnalKupa",     0f,    150f,   0f,              this.OnChangeSliderAnalKupa,    sliderNameAutoKUPA[1], false);
+				slider["LabiaKupa"]   = new YotogiSlider("Slider:LabiaKupa",    0f,    150f,   0f,              this.OnChangeSliderLabiaKupa,   sliderNameAutoKUPA[2], false);
+				slider["Suji"]        = new YotogiSlider("Slider:Suji",         0f,    150f,   0f,              this.OnChangeSliderSuji,        sliderNameAutoKUPA[3], false);
+				slider["Clitoris"]    = new YotogiSlider("Slider:Clitoris",     0f,    150f,   0f,              this.OnChangeSliderClitoris,    sliderNameAutoKUPA[4], false);
 
                 toggle["Lipsync"]     = new YotogiToggle("Toggle:Lipsync",      false, " Lipsync cancelling", this.OnChangeToggleLipsync);
                 toggle["Convulsion"]  = new YotogiToggle("Toggle:Convulsion",   false, " Orgasm convulsion",  this.OnChangeToggleConvulsion);
@@ -1241,9 +1273,14 @@ namespace CM3D2.AddYotogiSlider.Plugin
 
                 slider["EyeY"].Visible       = false;
                 slider["Hara"].Visible       = false;
-                slider["Kupa"].Visible       = false;
+
+				slider["Kupa"].Visible       = false;
                 slider["AnalKupa"].Visible   = false;
-                toggle["Convulsion"].Visible = false;
+				slider["LabiaKupa"].Visible  = false;
+				slider["Suji"].Visible       = false;
+				slider["Clitoris"].Visible   = false;
+
+				toggle["Convulsion"].Visible = false;
                 toggle["Lipsync"].Visible    = false;
                 grid["FaceAnime"].Visible    = false;
                 grid["FaceBlend"].Visible    = false;
@@ -1278,7 +1315,10 @@ namespace CM3D2.AddYotogiSlider.Plugin
                     panel["AutoKUPA"] = window.AddChild(panel["AutoKUPA"]);
                     if (bKupaAvailable) panel["AutoKUPA"].AddChild(slider["Kupa"]);
                     if (bAnalKupaAvailable) panel["AutoKUPA"].AddChild(slider["AnalKupa"]);
-                    window.AddHorizontalSpacer();
+					if (bLabiaKupaAvailable) panel["AutoKUPA"].AddChild(slider["LabiaKupa"]);
+					if (bSujiAvailable) panel["AutoKUPA"].AddChild(slider["Suji"]);
+					if (bClitorisAvailable) panel["AutoKUPA"].AddChild(slider["Clitoris"]);
+					window.AddHorizontalSpacer();
                 }
 
                 panel["FaceAnime"] = window.AddChild<YotogiPanel>( new YotogiPanel("Panel:FaceAnime", "FaceAnime", YotogiPanel.HeaderUI.Face) );
@@ -1379,12 +1419,18 @@ namespace CM3D2.AddYotogiSlider.Plugin
             {
                 if (bKupaAvailable) updateShapeKeyKupaValue(iKupaMin);
                 if (bAnalKupaAvailable) updateShapeKeyAnalKupaValue(iAnalKupaMin);
-            }
+				if (bLabiaKupaAvailable) updateShapeKeyLabiaKupaValue(iLabiaKupaMin);
+				if (bSujiAvailable) updateShapeKeySujiValue(iSujiMin);
+				if (bClitorisAvailable) updateShapeKeyClitorisValue(iClitorisMin);
+			}
             else
             {
                 if (bKupaAvailable) updateShapeKeyKupaValue(0f);
                 if (bAnalKupaAvailable) updateShapeKeyAnalKupaValue(0f);
-            }
+				if (bLabiaKupaAvailable) updateShapeKeyLabiaKupaValue(0f);
+				if (bSujiAvailable) updateShapeKeySujiValue(0f);
+				if (bClitorisAvailable) updateShapeKeyClitorisValue(0f);
+			}
             if (bOrgasmAvailable) updateShapeKeyOrgasmValue(0f);
 
             foreach (KeyValuePair<string, PlayAnime> kvp in pa) if (kvp.Value.NowPlaying) kvp.Value.Stop();
@@ -1863,6 +1909,33 @@ namespace CM3D2.AddYotogiSlider.Plugin
 
             updateSlider("Slider:AnalKupa", value);
         }
+		
+		private void updateShapeKeyLabiaKupaValue(float value)
+		{
+			try {
+				maid.body0.VertexMorph_FromProcItem("labiakupa", value/100f);
+			} catch { /*LogError(ex);*/ }
+			
+			updateSlider("Slider:LabiaKupa", value);
+		}
+
+		private void updateShapeKeySujiValue(float value)
+		{
+			try {
+				maid.body0.VertexMorph_FromProcItem("suji", value/100f);
+			} catch { /*LogError(ex);*/ }
+			
+			updateSlider("Slider:Suji", value);
+		}
+
+		private void updateShapeKeyClitorisValue(float value)
+		{
+			try {
+				maid.body0.VertexMorph_FromProcItem("clitoris", value/100f);
+			} catch { /*LogError(ex);*/ }
+			
+			updateSlider("Slider:Clitoris", value);
+		}
 
         private void updateShapeKeyOrgasmValue(float value)
         {
