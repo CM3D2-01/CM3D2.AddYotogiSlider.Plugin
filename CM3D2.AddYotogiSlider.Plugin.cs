@@ -887,7 +887,10 @@ namespace CM3D2.AddYotogiSlider.Plugin
             pa["AKPA.挿入.0"] = new PlayAnime("AKPA.挿入.0", 1, 0.50f,  1.50f);
             pa["AKPA.挿入.1"] = new PlayAnime("AKPA.挿入.1", 1, 1.50f,  2.50f);
             pa["AKPA.止める"] = new PlayAnime("AKPA.止める", 1, 0.00f,  2.00f);
-        }
+			pa["KUPACL.剥く.0"] = new PlayAnime("KUPACL.剥く.0", 1, 0.00f,  0.30f);
+			pa["KUPACL.剥く.1"] = new PlayAnime("KUPACL.剥く.1", 1, 0.20f,  0.60f);
+			pa["KUPACL.被る"] = new PlayAnime("KUPACL.被る", 1, 0.00f,  0.40f);
+		}
 
 
         public void OnLevelWasLoaded(int level)
@@ -1225,7 +1228,8 @@ namespace CM3D2.AddYotogiSlider.Plugin
                         if (p.Contains("BOTE")) p.SetSetter(updateMaidHaraValue);
                         if (p.Contains("KUPA")) p.SetSetter(updateShapeKeyKupaValue);
                         if (p.Contains("AKPA")) p.SetSetter(updateShapeKeyAnalKupaValue);
-                        if (p.Contains("AHE")) p.SetSetter(updateOrgasmConvulsion);
+						if (p.Contains("KUPACL")) p.SetSetter(updateShapeKeyClitorisValue);
+						if (p.Contains("AHE")) p.SetSetter(updateOrgasmConvulsion);
 
                         if (p.Contains("AHE.継続")) p.SetSetter(updateMaidEyePosY);
                         if (p.Contains("AHE.絶頂")) p.SetSetter(updateAheOrgasm);
@@ -1720,6 +1724,45 @@ namespace CM3D2.AddYotogiSlider.Plugin
                     pa["AKPA.止める"].Play(from, iAnalKupaMin);
                     bAnalKupaFuck = false;
                 }
+				
+				if(panel["Status"].Enabled && bClitorisAvailable) {
+					// 興奮の度合いによって程度が変わる
+					float offset = 0f;
+					float clitorisLong = 30f;
+					if (slider["Excite"].Value < 300f * 0.4f) {
+						offset = 0f;
+						clitorisLong = 30f;
+					} else if (slider["Excite"].Value < 300f * 0.7f) {
+						offset = 40f;
+						clitorisLong = 30f;
+					} else if (slider["Excite"].Value < 300f * 1.0f) {
+						offset = 70f;
+						clitorisLong = 40f;
+					} else {
+						offset = 100f;
+						clitorisLong = 50f;
+					}
+
+					// クリトリスを責める系
+					if (data.name.Contains("クリトリス") || data.group_name.Contains("オナニー")) {
+						if(!pa["KUPACL.剥く.1"].NowPlaying) {
+							pa["KUPACL.剥く.1"].Play(0f + offset, clitorisLong + offset);
+						}
+					} else {
+						// 絶頂したら飛び出る
+						if(!pa["KUPACL.剥く.0"].NowPlaying && !pa["KUPACL.剥く.1"].NowPlaying
+						   && (data.command_type == Yotogi.SkillCommandType.絶頂 || data.name.Contains("強く責める"))
+						   && slider["Clitoris"].Value < (clitorisLong - 10f + offset) ) {
+							pa["KUPACL.剥く.0"].Play(0f + offset, clitorisLong + offset);
+							
+							// 抜いたら引っ込む
+						} else if(!pa["KUPACL.被る"].NowPlaying && data.command_type == Yotogi.SkillCommandType.止める
+						          && slider["Clitoris"].Value > (clitorisLong - 10f + offset) ) {
+							pa["KUPACL.被る"].Play(clitorisLong + offset, 0f + offset);
+						}
+					}
+				}
+
             }
         }
 
@@ -1778,7 +1821,8 @@ namespace CM3D2.AddYotogiSlider.Plugin
                 string[] names = {
                     "KUPA.挿入.0", "KUPA.挿入.1", "KUPA.止める",
                     "AKPA.挿入.0", "AKPA.挿入.1", "AKPA.止める",
-                };
+					"KUPACL.剥く.0", "KUPACL.剥く.1", "KUPACL.被る",
+				};
                 foreach (var name in names)
                 {
                     if (pa[name].NowPlaying)
@@ -1819,7 +1863,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
                         fPassedTimeOnAutoAnalKupaWaiting = 0;
                     }
                 }
-            }
+			}
         }
 
         private void updateAnimeOnGUI()
