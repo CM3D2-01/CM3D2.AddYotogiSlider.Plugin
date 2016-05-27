@@ -18,7 +18,7 @@ using PV = UnityObsoleteGui.PixelValuesCM3D2;
 
 [assembly: AssemblyTitle("CM3D2.AddYotogiSlider.Plugin")]
 [assembly: AssemblyProduct(CM3D2.AddYotogiSlider.Plugin.AddYotogiSlider.Version)]
-[assembly: AssemblyVersion("0.0.4.7")]
+[assembly: AssemblyVersion("0.1.0.1")]
 
 
 
@@ -35,7 +35,7 @@ namespace CM3D2.AddYotogiSlider.Plugin
         #region Constants
 
         public const string PluginName = "AddYotogiSlider";
-        public const string Version    = "0.0.4.7+analkupa-v20151214";
+        public const string Version    = "0.1.0.1";
 
         private readonly float TimePerInit        = 1.00f;
         private readonly float TimePerUpdateSpeed = 0.33f;
