@@ -1421,9 +1421,9 @@ namespace CM3D2.AddYotogiSlider.Plugin
             {
                 LogDebug("Start Skill : {0}", sd.name);
                 KupaLevel kl = checkSkillKupaLevel(sd);
-                if (kl != KupaLevel.None) iKupaDef = iKupaValue[(int)kl];
+				if (kl != KupaLevel.None) iKupaDef = (int)(iKupaValue[(int)kl] * slider["KupaLevel"].Value / 100f);
                 kl = checkSkillAnalKupaLevel(sd);
-                if (kl != KupaLevel.None) iAnalKupaDef = iAnalKupaValue[(int)kl];
+				if (kl != KupaLevel.None) iAnalKupaDef = (int)(iAnalKupaValue[(int)kl] * slider["KupaLevel"].Value / 100f);
             }
 
             if (panel["AutoKUPA"].Enabled)
@@ -1586,13 +1586,13 @@ namespace CM3D2.AddYotogiSlider.Plugin
 
                 for (int i=0; i<2; i++)
                 {
-                    if (pa["KUPA.挿入."+ i].NowPlaying) updateShapeKeyKupaValue(iKupaValue[i]);
+					if (pa["KUPA.挿入."+ i].NowPlaying) updateShapeKeyKupaValue((int)(iKupaValue[i] * slider["KupaLevel"].Value / 100f));
                     pa["KUPA.挿入."+ i].Stop();
                 }
 
                 for (int i=0; i<2; i++)
                 {
-                    if (pa["AKPA.挿入."+ i].NowPlaying) updateShapeKeyAnalKupaValue(iAnalKupaValue[i]);
+					if (pa["AKPA.挿入."+ i].NowPlaying) updateShapeKeyAnalKupaValue((int)(iAnalKupaValue[i] * slider["KupaLevel"].Value / 100f));
                     pa["AKPA.挿入."+ i].Stop();
                 }
             }
@@ -1697,8 +1697,8 @@ namespace CM3D2.AddYotogiSlider.Plugin
                 int i = (int)checkCommandKupaLevel(data);
                 if (i >= 0)
                 {
-                    if (from < iKupaValue[i])
-                        pa["KUPA.挿入."+ i].Play(from, iKupaValue[i]);
+					if (from < (int)(iKupaValue[i] * slider["KupaLevel"].Value / 100f))
+						pa["KUPA.挿入."+ i].Play(from, (int)(iKupaValue[i] * slider["KupaLevel"].Value / 100f));
                     bKupaFuck = true;
                 }
                 else if (bKupaFuck && checkCommandKupaStop(data))
@@ -1711,8 +1711,8 @@ namespace CM3D2.AddYotogiSlider.Plugin
                 i = (int)checkCommandAnalKupaLevel(data);
                 if (i >= 0)
                 {
-                    if (from < iAnalKupaValue[i])
-                        pa["AKPA.挿入."+ i].Play(from, iAnalKupaValue[i]);
+					if (from < (int)(iAnalKupaValue[i] * slider["KupaLevel"].Value / 100f))
+						pa["AKPA.挿入."+ i].Play(from, (int)(iAnalKupaValue[i] * slider["KupaLevel"].Value / 100f));
                     bAnalKupaFuck = true;
                 }
                 else if (bAnalKupaFuck && checkCommandAnalKupaStop(data))
